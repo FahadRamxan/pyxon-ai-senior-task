@@ -8,6 +8,43 @@ This entry task focuses on **agentic systems**: building agents that use externa
 
 ---
 
+## Quick Start (How to Run)
+
+1. **Create a virtual environment and activate it**
+   ```bash
+   python -m venv .venv
+   .venv\Scripts\activate   # Windows
+   # source .venv/bin/activate  # macOS/Linux
+   ```
+
+2. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Configure environment**
+   - Copy or create a `.env` file in the project root (see example below). **Do not commit `.env`**; it is in `.gitignore`.
+   - Required for the chatbot: `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_CSE_ID`.
+
+4. **Run the FastAPI app**
+   ```bash
+   uvicorn app.main:app --port 8002 --reload
+   ```
+   - API: <http://localhost:8002>
+   - Full-page chat: <http://localhost:8002/>
+   - **Embeddable widget:** <http://localhost:8002/widget> (floating bubble + panel; use in iframe or add `<script src="http://localhost:8002/embed.js" data-base="http://localhost:8002"></script>` to any page)
+   - Docs: <http://localhost:8002/docs>
+   - Chat API: `POST /chat/` with body `{"message": "Your question here"}`
+
+**Example `.env` (do not commit):**
+```env
+OPENAI_API_KEY=your-openai-key
+GOOGLE_API_KEY=your-google-api-key
+GOOGLE_CSE_ID=your-cse-id
+```
+
+---
+
 ## Role Context
 
 ### Key Responsibilities (from the role)
