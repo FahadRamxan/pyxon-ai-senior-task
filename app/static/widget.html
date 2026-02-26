@@ -586,6 +586,43 @@
       transform: rotate(90deg);
     }
     .pyxon-widget__end-chat svg { width: 20px; height: 20px; }
+    .pyxon-widget__file-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      min-height: 28px;
+    }
+    .pyxon-widget__file-input { display: none; }
+    .pyxon-widget__file-btn {
+      padding: 6px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--px-border);
+      background: var(--px-bg-header);
+      color: var(--px-text-muted);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .pyxon-widget__file-btn:hover { color: var(--px-text); border-color: var(--px-text-muted); }
+    .pyxon-widget__file-name {
+      font-size: 0.75rem;
+      color: var(--px-text-muted);
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .pyxon-widget__file-clear {
+      padding: 2px 8px;
+      border: none;
+      background: transparent;
+      color: var(--px-text-muted);
+      font-size: 0.75rem;
+      cursor: pointer;
+      border-radius: 6px;
+    }
+    .pyxon-widget__file-clear:hover { color: #ef4444; background: rgba(239,68,68,0.1); }
   </style>
 </head>
 <body>
@@ -618,6 +655,9 @@
               </button>
               <button type="button" class="pyxon-widget__welcome-mode-btn" id="welcomeModeRag" data-mode="rag">
                 <span id="i18nModeRag">RAG</span>
+              </button>
+              <button type="button" class="pyxon-widget__welcome-mode-btn" id="welcomeModeSwarm" data-mode="swarm">
+                <span id="i18nModeSwarm">Swarm</span>
               </button>
             </div>
           </div>
@@ -659,6 +699,7 @@
         <div class="pyxon-widget__mode-toggle">
           <button type="button" class="pyxon-widget__mode-btn active" id="modeGeneral" data-mode="general">General</button>
           <button type="button" class="pyxon-widget__mode-btn" id="modeRag" data-mode="rag">RAG</button>
+          <button type="button" class="pyxon-widget__mode-btn" id="modeSwarm" data-mode="swarm">Swarm</button>
         </div>
         <div class="pyxon-widget__messages" id="messages">
           <div class="pyxon-widget__empty-state" id="emptyState">
@@ -676,6 +717,12 @@
             <button type="button" class="pyxon-widget__end-chat" id="endChat" title="End chat" aria-label="End chat">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
+          </div>
+          <div class="pyxon-widget__file-row">
+            <input type="file" class="pyxon-widget__file-input" id="fileInput" accept=".pdf,.txt,.csv,.json,.md" aria-label="Attach file">
+            <button type="button" class="pyxon-widget__file-btn" id="fileBtn" data-i18n-attach="attachFile">Attach file</button>
+            <span class="pyxon-widget__file-name" id="fileName"></span>
+            <button type="button" class="pyxon-widget__file-clear" id="fileClear" style="display:none">Remove</button>
           </div>
         </div>
       </div>
@@ -699,6 +746,10 @@
       var inputEl = document.getElementById('input');
       var sendBtn = document.getElementById('send');
       var endChatBtn = document.getElementById('endChat');
+      var fileInput = document.getElementById('fileInput');
+      var fileBtn = document.getElementById('fileBtn');
+      var fileName = document.getElementById('fileName');
+      var fileClear = document.getElementById('fileClear');
       var themeBtn = document.getElementById('themeBtn');
       var iconSun = document.getElementById('iconSun');
       var iconMoon = document.getElementById('iconMoon');
@@ -716,6 +767,7 @@
           welcomeModeLabel: 'Use company knowledge (RAG):',
           modeGeneral: 'General',
           modeRag: 'RAG',
+          modeSwarm: 'Swarm',
           startChat: 'Start chat',
           disclaimerTitle: 'Important notice',
           disclaimerHtml: '<p>This chat is powered by <strong>artificial intelligence</strong>. Please read the following:</p><ul><li><strong>Accuracy:</strong> Outputs may be inaccurate or incomplete and should not be relied upon for critical decisions without human review.</li><li><strong>Data use:</strong> Your conversations and contact information may be processed to operate, improve, and develop our services (including analytics and model training), in accordance with our Privacy Policy.</li><li><strong>Sensitive data:</strong> Do not submit sensitive personal, financial, or health information.</li><li><strong>Terms:</strong> Use of this service is subject to our Terms of Use.</li></ul><p>By clicking <strong>"I accept"</strong> you acknowledge that you have read and agree to these terms.</p>',
@@ -732,7 +784,9 @@
           greetingNoName: 'How can I help you today?',
           online: 'Online',
           emptyMsg: 'Happy to help! Ask me anything — we\'re here to reply.',
-          inputPlaceholder: 'Type a message...'
+          inputPlaceholder: 'Type a message...',
+          attachFile: 'Attach file',
+          removeFile: 'Remove'
         },
         ar: {
           welcomeTitle: 'مرحباً بك في Pyxon-Test',
@@ -740,6 +794,7 @@
           welcomeModeLabel: 'استخدام معرفة الشركة (RAG):',
           modeGeneral: 'عام',
           modeRag: 'RAG',
+          modeSwarm: 'Swarm',
           startChat: 'بدء المحادثة',
           disclaimerTitle: 'إشعار مهم',
           disclaimerHtml: '<p>هذه المحادثة مدعومة بـ <strong>الذكاء الاصطناعي</strong>. يرجى قراءة ما يلي:</p><ul><li><strong>الدقة:</strong> قد تكون المخرجات غير دقيقة أو ناقصة ولا يعتمد عليها في قرارات مصيرية دون مراجعة بشرية.</li><li><strong>استخدام البيانات:</strong> قد تتم معالجة محادثاتك ومعلومات الاتصال لتشغيل وتحسين وتطوير خدماتنا (بما في ذلك التحليلات وتدريب النماذج)، وفقاً لسياسة الخصوصية.</li><li><strong>البيانات الحساسة:</strong> لا تُدخل معلومات شخصية أو مالية أو صحية حساسة.</li><li><strong>الشروط:</strong> استخدام هذه الخدمة يخضع لشروط الاستخدام.</li></ul><p>بالنقر على <strong>"أوافق"</strong> فإنك تقر بأنك قرأت ووافقت على هذه الشروط.</p>',
@@ -756,7 +811,9 @@
           greetingNoName: 'كيف يمكنني مساعدتك اليوم؟',
           online: 'متصل',
           emptyMsg: 'يسعدنا مساعدتك! اسأل أي شيء — نحن هنا للرد.',
-          inputPlaceholder: 'اكتب رسالتك...'
+          inputPlaceholder: 'اكتب رسالتك...',
+          attachFile: 'إرفاق ملف',
+          removeFile: 'إزالة'
         }
       };
 
@@ -771,6 +828,8 @@
         if (mg) mg.textContent = t.modeGeneral;
         var mr = document.getElementById('i18nModeRag');
         if (mr) mr.textContent = t.modeRag;
+        var ms = document.getElementById('i18nModeSwarm');
+        if (ms) ms.textContent = t.modeSwarm;
         document.getElementById('startChatBtn').textContent = t.startChat;
         document.getElementById('i18nDisclaimerTitle').textContent = t.disclaimerTitle;
         document.getElementById('i18nDisclaimerText').innerHTML = t.disclaimerHtml;
@@ -792,6 +851,8 @@
           greetingEl.innerHTML = renderMarkdown(greetingMsg);
         }
         if (inputEl) inputEl.placeholder = t.inputPlaceholder;
+        if (fileBtn) fileBtn.textContent = t.attachFile || 'Attach file';
+        if (fileClear) fileClear.textContent = t.removeFile || 'Remove';
         document.getElementById('langEn').classList.toggle('active', lang === 'en');
         document.getElementById('langAr').classList.toggle('active', lang === 'ar');
       }
@@ -808,6 +869,11 @@
         document.querySelectorAll('.pyxon-widget__welcome-mode-btn').forEach(function(b) { b.classList.remove('active'); });
         this.classList.add('active');
       });
+      document.getElementById('welcomeModeSwarm').addEventListener('click', function() {
+        chatMode = 'swarm';
+        document.querySelectorAll('.pyxon-widget__welcome-mode-btn').forEach(function(b) { b.classList.remove('active'); });
+        this.classList.add('active');
+      });
       document.getElementById('modeGeneral').addEventListener('click', function() {
         chatMode = 'general';
         document.querySelectorAll('.pyxon-widget__mode-btn').forEach(function(b) { b.classList.remove('active'); });
@@ -815,6 +881,11 @@
       });
       document.getElementById('modeRag').addEventListener('click', function() {
         chatMode = 'rag';
+        document.querySelectorAll('.pyxon-widget__mode-btn').forEach(function(b) { b.classList.remove('active'); });
+        this.classList.add('active');
+      });
+      document.getElementById('modeSwarm').addEventListener('click', function() {
+        chatMode = 'swarm';
         document.querySelectorAll('.pyxon-widget__mode-btn').forEach(function(b) { b.classList.remove('active'); });
         this.classList.add('active');
       });
@@ -1007,18 +1078,44 @@
         } else if (!show && el) el.remove();
       }
 
+      function clearFile() {
+        if (fileInput) fileInput.value = '';
+        if (fileName) fileName.textContent = '';
+        if (fileClear) fileClear.style.display = 'none';
+      }
+      if (fileBtn && fileInput) fileBtn.addEventListener('click', function() { fileInput.click(); });
+      if (fileInput && fileName && fileClear) {
+        fileInput.addEventListener('change', function() {
+          if (fileInput.files && fileInput.files.length > 0) {
+            fileName.textContent = fileInput.files[0].name;
+            fileClear.style.display = '';
+          } else clearFile();
+        });
+      }
+      if (fileClear) fileClear.addEventListener('click', clearFile);
+
       function send() {
         var text = inputEl.value.trim();
         if (!text) return;
+        var includeTrace = (chatMode === 'swarm');
+        var hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
         inputEl.value = '';
-        addMessage('user', text);
+        addMessage('user', text + (hasFile ? ' [file: ' + fileInput.files[0].name + ']' : ''));
         sendBtn.disabled = true;
         showTyping(true);
-        fetch(apiBase + '/chat/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text, mode: chatMode || 'general' })
-        })
+        var opts = { method: 'POST' };
+        if (hasFile) {
+          var fd = new FormData();
+          fd.append('message', text);
+          fd.append('mode', chatMode || 'general');
+          fd.append('include_trace', includeTrace ? 'true' : 'false');
+          fd.append('file', fileInput.files[0]);
+          opts.body = fd;
+        } else {
+          opts.headers = { 'Content-Type': 'application/json' };
+          opts.body = JSON.stringify({ message: text, mode: chatMode || 'general', include_trace: includeTrace });
+        }
+        fetch(apiBase + '/chat/', opts)
           .then(function(r) { return r.json().catch(function() { return {}; }); })
           .then(function(data) {
             showTyping(false);
@@ -1031,6 +1128,7 @@
           })
           .finally(function() {
             sendBtn.disabled = false;
+            clearFile();
             inputEl.focus();
           });
       }

@@ -66,6 +66,14 @@ In **mode=general**, the agent uses SerpAPI search and URL (GET/POST) tools. Sea
 
 So the first time you ask e.g. "Class B license rules in Germany", the agent searches and the results are stored; a follow-up like "What's the minimum age?" can be answered using the retrieved context. Requires Qdrant (same as RAG mode).
 
+### Swarm mode (multi-agent)
+
+**mode=swarm** runs a LangGraph multi-agent swarm: a **supervisor** routes to **researcher** (search), **fetcher** (URL GET), and **synthesizer** (writer). Data from search and URLs flows into shared state and the synthesizer produces the final answer.
+
+- **Widget:** Choose **Swarm** at start or in the chat mode toggle. Each reply shows a **Flow** line at the bottom (e.g. `supervisor → researcher → supervisor → synthesizer → supervisor → finish`).
+- **API:** `POST /chat/` with `{"message": "...", "mode": "swarm", "include_trace": true}`. The response includes `output` and optionally `trace` (list of steps: node, decision, result_preview, etc.).
+- **Server console:** When the app runs with `uvicorn`, each swarm step is logged (e.g. `INFO ... swarm step 1: supervisor`, `swarm supervisor decision: researcher`). Watch the terminal to see the flow live.
+
 ---
 
 ## Role Context

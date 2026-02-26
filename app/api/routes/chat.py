@@ -2,22 +2,28 @@
 
 from typing import Any, Literal
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from pydantic import BaseModel, Field
 
 from app.agents import get_chat_agent
 from app.rag import rag_answer
 from app.rag.search_store import persist_search_content, retrieve_search_context
+from app.swarm import run_swarm
+from app.utils.file_extract import extract_text_from_file
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
 class ChatRequest(BaseModel):
-    """Request body for the chat endpoint."""
+    """Request body for the chat endpoint (JSON)."""
 
     message: str = Field(..., min_length=1, max_length=32_000, description="User message for the agent.")
-    mode: Literal["general", "rag"] = Field(default="general", description="general = search/URL agent; rag = RAG orchestration over Pyxon PDFs.")
+    mode: Literal["general", "rag", "swarm"] = Field(
+        default="general",
+        description="general = search/URL + persist; rag = PDF RAG; swarm = multi-agent (supervisor + researcher + fetcher + analyst + coder + synthesizer).",
+    )
+    include_trace: bool = Field(default=False, description="If true and mode=swarm, include flow trace in response.")
 
 
 class ChatResponse(BaseModel):
@@ -25,6 +31,7 @@ class ChatResponse(BaseModel):
 
     output: str = Field(..., description="Agent's reply.")
     success: bool = Field(default=True, description="Whether the request succeeded.")
+    trace: list[dict] | None = Field(default=None, description="Swarm flow steps (only when mode=swarm and include_trace=true).")
 
 
 def _last_ai_content(messages: list[Any]) -> str:
@@ -52,30 +59,78 @@ def _persist_tool_results(messages: list[Any], user_query: str) -> None:
         pass
 
 
-@router.post("/", response_model=ChatResponse)
-def chat(request: ChatRequest) -> ChatResponse:
-    """
-    Send a message to the agent. Use mode="general" for search/URL agent (with persist + retrieve
-    of search/URL results in a vector store); mode="rag" for RAG over Pyxon PDFs.
-    """
+def _chat_handle(
+    message: str,
+    mode: Literal["general", "rag", "swarm"],
+    include_trace: bool = False,
+    uploaded_files: list[dict] | None = None,
+) -> ChatResponse:
+    """Shared logic for chat: message, mode, optional files (for swarm)."""
     try:
-        if request.mode == "rag":
-            output = rag_answer(request.message)
+        if mode == "rag":
+            output = rag_answer(message)
             return ChatResponse(output=output, success=True)
-        # General mode: retrieve from search-results store, then run agent, then persist tool outputs
-        context = retrieve_search_context(request.message)
+        if mode == "swarm":
+            output, steps = run_swarm(message, uploaded_files=uploaded_files)
+            trace = steps if include_trace else None
+            return ChatResponse(output=output or "No answer produced.", success=True, trace=trace)
+        # General mode
+        context = retrieve_search_context(message)
         if context:
             user_content = (
                 "Relevant context from previous searches and fetched pages:\n\n"
-                f"{context}\n\nUser question: {request.message}"
+                f"{context}\n\nUser question: {message}"
             )
         else:
-            user_content = request.message
+            user_content = message
         agent = get_chat_agent()
         result = agent.invoke({"messages": [HumanMessage(content=user_content)]})
         messages = result.get("messages", [])
-        _persist_tool_results(messages, request.message)
+        _persist_tool_results(messages, message)
         output = _last_ai_content(messages)
         return ChatResponse(output=output, success=True)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/", response_model=ChatResponse)
+async def chat(request: Request) -> ChatResponse:
+    """
+    Send a message to the agent. Accepts either JSON or multipart/form-data (with optional file for swarm).
+    Modes: general (search/URL + persist), rag (PDF RAG), swarm (multi-agent with analyst, coder, file analysis).
+    """
+    content_type = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
+    if content_type == "multipart/form-data" or content_type == "application/x-www-form-urlencoded":
+        try:
+            form = await request.form()
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid form: {e}") from e
+        message = (form.get("message") or "").strip()
+        if not message:
+            raise HTTPException(status_code=400, detail="message is required")
+        mode = (form.get("mode") or "general").strip() or "general"
+        if mode not in ("general", "rag", "swarm"):
+            mode = "general"
+        include_trace = form.get("include_trace") in ("true", "1", "yes")
+        uploaded_files: list[dict] = []
+        file = form.get("file")
+        if file and getattr(file, "filename", None) and callable(getattr(file, "read", None)):
+            try:
+                raw = await file.read()
+                text = extract_text_from_file(file.filename, raw)
+                uploaded_files.append({"filename": file.filename, "content": text})
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"File read failed: {e}") from e
+        return _chat_handle(message=message, mode=mode, include_trace=include_trace, uploaded_files=uploaded_files or None)
+
+    try:
+        body = await request.json()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {e}") from e
+    req = ChatRequest.model_validate(body)
+    return _chat_handle(
+        message=req.message,
+        mode=req.mode,
+        include_trace=req.include_trace,
+        uploaded_files=None,
+    )
