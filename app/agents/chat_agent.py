@@ -13,7 +13,7 @@ SYSTEM_PROMPT = """You can search the web and call URLs/APIs to get data. Use th
 - **URLs/APIs**: Use the fetch (GET) tool to get content from a URL or API. You receive the response as text (HTML or JSON). Interpret that content and use it to answer questions, e.g. "What does this API return?", "Summarize the content at this URL", or explain what the page says.
 - **POST**: When an API requires a POST body, use the POST tool with a JSON string containing "url" and "data".
 
-Always use the tool output to formulate your reply. Cite or summarize the fetched content when relevant."""
+When the user message includes "Relevant context from previous searches and fetched pages", use that context to ground your answer and cite it when possible (e.g. mention "from search results" or "according to the fetched page" or the source/URL if shown). Always use tool output and any provided context to formulate your reply; cite or summarize sources when relevant."""
 
 
 def get_llm() -> ChatOpenAI:

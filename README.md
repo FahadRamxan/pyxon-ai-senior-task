@@ -56,6 +56,16 @@ The chat supports **mode=rag**: an orchestration pipeline over the PDFs in `Pyxo
    Or ingest one agent: `python -m app.rag.ingest_cli general`
 3. In the widget, select **RAG** and ask questions; or call `POST /chat/` with `{"message": "...", "mode": "rag"}`.
 
+### General mode: search/URL + persist & retrieve (RAG over search results)
+
+In **mode=general**, the agent uses SerpAPI search and URL (GET/POST) tools. Search and URL results are **persisted** into a Qdrant collection (`pyxon_search_results`) and **retrieved** before each reply for better grounding and reuse:
+
+1. **Retrieve:** The user message is embedded and used to query the `pyxon_search_results` collection; any matching past search/URL content is added as context to the prompt.
+2. **Run agent:** The agent runs with that context and may call search/URL tools again.
+3. **Persist:** All tool outputs (search snippets, fetched page/API text) are chunked, embedded, and upserted into `pyxon_search_results` for future turns.
+
+So the first time you ask e.g. "Class B license rules in Germany", the agent searches and the results are stored; a follow-up like "What's the minimum age?" can be answered using the retrieved context. Requires Qdrant (same as RAG mode).
+
 ---
 
 ## Role Context

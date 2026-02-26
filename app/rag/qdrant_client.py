@@ -4,7 +4,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams
 
 from app.config import settings
-from app.rag.config import EMBEDDING_DIMENSION, RAG_AGENTS
+from app.rag.config import EMBEDDING_DIMENSION, RAG_AGENTS, SEARCH_RESULTS_COLLECTION
 
 
 def get_qdrant_client() -> QdrantClient:
@@ -28,3 +28,15 @@ def ensure_collections(client: QdrantClient) -> None:
                     distance=Distance.COSINE,
                 ),
             )
+
+
+def ensure_search_results_collection(client: QdrantClient) -> None:
+    """Create the search/URL results collection if it does not exist."""
+    if not client.collection_exists(SEARCH_RESULTS_COLLECTION):
+        client.create_collection(
+            collection_name=SEARCH_RESULTS_COLLECTION,
+            vectors_config=VectorParams(
+                size=EMBEDDING_DIMENSION,
+                distance=Distance.COSINE,
+            ),
+        )

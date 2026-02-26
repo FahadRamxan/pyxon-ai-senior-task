@@ -49,3 +49,7 @@ RAG_MIN_SCORE = 0.0  # optional score threshold
 # Chunking (paragraph/heading-oriented)
 CHUNK_SIZE = 600
 CHUNK_OVERLAP = 80
+
+# Search/URL results persisted for RAG (general agent)
+SEARCH_RESULTS_COLLECTION = "pyxon_search_results"
+SEARCH_RAG_TOP_K = 5
