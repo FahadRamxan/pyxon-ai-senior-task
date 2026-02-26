@@ -41,7 +41,20 @@ This entry task focuses on **agentic systems**: building agents that use externa
 OPENAI_API_KEY=your-openai-key
 GOOGLE_API_KEY=your-google-api-key
 GOOGLE_CSE_ID=your-cse-id
+# Optional: RAG (Qdrant). Defaults to http://localhost:6333 if not set.
+QDRANT_URL=http://localhost:6333
+QDRANT_API_KEY=
 ```
+
+### RAG mode (Qdrant)
+
+The chat supports **mode=rag**: an orchestration pipeline over the PDFs in `Pyxon Data RAG/`. An intent classifier routes the query to one or more sub-agents (General, Cloud & Automation, Smart IoT, AI Solutions, Cybersecurity); each sub-agent uses its own Qdrant collection and GPT-4o-mini. Multi-intent queries run sub-agents in parallel, then a synthesizer merges the answers.
+
+1. **Run Qdrant** (e.g. Docker): `docker run -p 6333:6333 qdrant/qdrant`
+2. **Ingest PDFs** into Qdrant (once):  
+   `python -m app.rag.ingest_cli` or `python -m app.rag.ingest_cli all`  
+   Or ingest one agent: `python -m app.rag.ingest_cli general`
+3. In the widget, select **RAG** and ask questions; or call `POST /chat/` with `{"message": "...", "mode": "rag"}`.
 
 ---
 

@@ -126,6 +126,16 @@
     }
     .pyxon-widget__lang-btn:hover { color: var(--px-text); }
     .pyxon-widget__lang-btn.active { background: #3b82f6; color: #fff; }
+    .pyxon-widget__mode-toggle {
+      display: flex; border-radius: 10px; overflow: hidden; border: 1px solid var(--px-border);
+      background: var(--px-bg); margin: 0 18px 10px; align-self: flex-start;
+    }
+    .pyxon-widget__mode-btn {
+      padding: 6px 12px; border: none; background: transparent; color: var(--px-text-muted);
+      font-size: 0.75rem; font-weight: 500; cursor: pointer; transition: background 0.2s, color 0.2s;
+    }
+    .pyxon-widget__mode-btn:hover { color: var(--px-text); }
+    .pyxon-widget__mode-btn.active { background: #3b82f6; color: #fff; }
     .pyxon-widget__theme-btn {
       width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--px-border);
       background: var(--px-bg); color: var(--px-text-muted); cursor: pointer;
@@ -186,6 +196,38 @@
       transition: transform 0.2s, box-shadow 0.2s;
     }
     .pyxon-widget__start-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(59, 130, 246, 0.35); }
+    .pyxon-widget__welcome-mode {
+      margin: 16px 0 20px 0;
+      text-align: left;
+    }
+    .pyxon-widget__panel[dir="rtl"] .pyxon-widget__welcome-mode { text-align: right; }
+    .pyxon-widget__welcome-mode-label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--px-text-muted);
+      margin-bottom: 8px;
+    }
+    .pyxon-widget__welcome-mode-options {
+      display: flex;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--px-border);
+      background: var(--px-bg);
+    }
+    .pyxon-widget__welcome-mode-btn {
+      flex: 1;
+      padding: 8px 14px;
+      border: none;
+      background: transparent;
+      color: var(--px-text-muted);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .pyxon-widget__welcome-mode-btn:hover { color: var(--px-text); }
+    .pyxon-widget__welcome-mode-btn.active { background: #3b82f6; color: #fff; }
 
     .pyxon-widget__disclaimer {
       padding: 20px 18px;
@@ -380,7 +422,7 @@
       padding: 10px 14px;
       border-radius: 16px;
       max-width: 88%;
-      line-height: 1.5;
+      line-height: 1.35;
       white-space: pre-wrap;
       word-break: break-word;
       font-size: 0.8125rem;
@@ -451,11 +493,14 @@
     }
     .pyxon-widget__msg strong { font-weight: 700; }
     .pyxon-widget__msg em { font-style: italic; }
-    .pyxon-widget__msg .md-h1 { font-size: 1.08em; font-weight: 700; margin: 0.5em 0 0.25em; line-height: 1.3; }
-    .pyxon-widget__msg .md-h2 { font-size: 1.04em; font-weight: 700; margin: 0.45em 0 0.2em; line-height: 1.3; }
-    .pyxon-widget__msg .md-h3 { font-size: 0.98em; font-weight: 600; margin: 0.4em 0 0.2em; line-height: 1.35; }
-    .pyxon-widget__msg .md-h4, .pyxon-widget__msg .md-h5, .pyxon-widget__msg .md-h6 { font-size: 0.92em; font-weight: 600; margin: 0.35em 0 0.15em; }
+    .pyxon-widget__msg .md-h1 { font-size: 1.08em; font-weight: 700; margin: 0.4em 0 0.15em; line-height: 1.3; }
+    .pyxon-widget__msg .md-h2 { font-size: 1.04em; font-weight: 700; margin: 0.35em 0 0.12em; line-height: 1.3; }
+    .pyxon-widget__msg .md-h3 { font-size: 0.98em; font-weight: 600; margin: 0.3em 0 0.1em; line-height: 1.35; }
+    .pyxon-widget__msg .md-h4, .pyxon-widget__msg .md-h5, .pyxon-widget__msg .md-h6 { font-size: 0.92em; font-weight: 600; margin: 0.25em 0 0.08em; }
     .pyxon-widget__msg .md-h1:first-child { margin-top: 0; }
+    .pyxon-widget__msg-list { margin: 0.35em 0; padding-left: 1.2em; list-style: disc; }
+    .pyxon-widget__panel[dir="rtl"] .pyxon-widget__msg-list { padding-left: 0; padding-right: 1.2em; }
+    .pyxon-widget__msg-list li { margin-bottom: 0.25em; }
     .pyxon-widget__msg a { color: #3b82f6; text-decoration: none; }
     .pyxon-widget__msg a:hover { text-decoration: underline; }
     /* Typing indicator: bubble with bouncing dots */
@@ -564,7 +609,18 @@
       <div class="pyxon-widget__welcome" id="stepWelcome">
         <div class="pyxon-widget__welcome-card">
           <div class="pyxon-widget__welcome-title" id="i18nWelcomeTitle">Welcome to Pyxon-Test</div>
-          <div class="pyxon-widget__welcome-text" id="i18nWelcomeText">Get answers and help from our AI assistant. Click below to start.</div>
+          <div class="pyxon-widget__welcome-text" id="i18nWelcomeText">Get answers and help from our AI assistant. Choose your language above, then click below to start.</div>
+          <div class="pyxon-widget__welcome-mode">
+            <span class="pyxon-widget__welcome-mode-label" id="i18nWelcomeModeLabel">Use company knowledge (RAG):</span>
+            <div class="pyxon-widget__welcome-mode-options">
+              <button type="button" class="pyxon-widget__welcome-mode-btn active" id="welcomeModeGeneral" data-mode="general">
+                <span id="i18nModeGeneral">General</span>
+              </button>
+              <button type="button" class="pyxon-widget__welcome-mode-btn" id="welcomeModeRag" data-mode="rag">
+                <span id="i18nModeRag">RAG</span>
+              </button>
+            </div>
+          </div>
           <button type="button" class="pyxon-widget__start-btn" id="startChatBtn">Start chat</button>
         </div>
       </div>
@@ -600,6 +656,10 @@
 
       <!-- Step 3: Chat -->
       <div class="pyxon-widget__chat-view hidden" id="chatView">
+        <div class="pyxon-widget__mode-toggle">
+          <button type="button" class="pyxon-widget__mode-btn active" id="modeGeneral" data-mode="general">General</button>
+          <button type="button" class="pyxon-widget__mode-btn" id="modeRag" data-mode="rag">RAG</button>
+        </div>
         <div class="pyxon-widget__messages" id="messages">
           <div class="pyxon-widget__empty-state" id="emptyState">
             <div class="pyxon-widget__empty-dot"></div>
@@ -647,11 +707,15 @@
       var userName = '';
       var userEmail = '';
       var lang = 'en';
+      var chatMode = 'general';
 
       var i18n = {
         en: {
           welcomeTitle: 'Welcome to Pyxon-Test',
-          welcomeText: 'Get answers and help from our AI assistant. Choose your language above, then click below to start.',
+          welcomeText: 'Get answers and help from our AI assistant. Choose your language and chat mode below, then start.',
+          welcomeModeLabel: 'Use company knowledge (RAG):',
+          modeGeneral: 'General',
+          modeRag: 'RAG',
           startChat: 'Start chat',
           disclaimerTitle: 'Important notice',
           disclaimerHtml: '<p>This chat is powered by <strong>artificial intelligence</strong>. Please read the following:</p><ul><li><strong>Accuracy:</strong> Outputs may be inaccurate or incomplete and should not be relied upon for critical decisions without human review.</li><li><strong>Data use:</strong> Your conversations and contact information may be processed to operate, improve, and develop our services (including analytics and model training), in accordance with our Privacy Policy.</li><li><strong>Sensitive data:</strong> Do not submit sensitive personal, financial, or health information.</li><li><strong>Terms:</strong> Use of this service is subject to our Terms of Use.</li></ul><p>By clicking <strong>"I accept"</strong> you acknowledge that you have read and agree to these terms.</p>',
@@ -672,7 +736,10 @@
         },
         ar: {
           welcomeTitle: 'مرحباً بك في Pyxon-Test',
-          welcomeText: 'احصل على إجابات ومساعدة من مساعدنا. اختر لغتك أعلاه ثم اضغط للبدء.',
+          welcomeText: 'احصل على إجابات ومساعدة من مساعدنا. اختر اللغة ووضع المحادثة ثم ابدأ.',
+          welcomeModeLabel: 'استخدام معرفة الشركة (RAG):',
+          modeGeneral: 'عام',
+          modeRag: 'RAG',
           startChat: 'بدء المحادثة',
           disclaimerTitle: 'إشعار مهم',
           disclaimerHtml: '<p>هذه المحادثة مدعومة بـ <strong>الذكاء الاصطناعي</strong>. يرجى قراءة ما يلي:</p><ul><li><strong>الدقة:</strong> قد تكون المخرجات غير دقيقة أو ناقصة ولا يعتمد عليها في قرارات مصيرية دون مراجعة بشرية.</li><li><strong>استخدام البيانات:</strong> قد تتم معالجة محادثاتك ومعلومات الاتصال لتشغيل وتحسين وتطوير خدماتنا (بما في ذلك التحليلات وتدريب النماذج)، وفقاً لسياسة الخصوصية.</li><li><strong>البيانات الحساسة:</strong> لا تُدخل معلومات شخصية أو مالية أو صحية حساسة.</li><li><strong>الشروط:</strong> استخدام هذه الخدمة يخضع لشروط الاستخدام.</li></ul><p>بالنقر على <strong>"أوافق"</strong> فإنك تقر بأنك قرأت ووافقت على هذه الشروط.</p>',
@@ -698,6 +765,12 @@
         panel.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
         document.getElementById('i18nWelcomeTitle').textContent = t.welcomeTitle;
         document.getElementById('i18nWelcomeText').textContent = t.welcomeText;
+        var wml = document.getElementById('i18nWelcomeModeLabel');
+        if (wml) wml.textContent = t.welcomeModeLabel;
+        var mg = document.getElementById('i18nModeGeneral');
+        if (mg) mg.textContent = t.modeGeneral;
+        var mr = document.getElementById('i18nModeRag');
+        if (mr) mr.textContent = t.modeRag;
         document.getElementById('startChatBtn').textContent = t.startChat;
         document.getElementById('i18nDisclaimerTitle').textContent = t.disclaimerTitle;
         document.getElementById('i18nDisclaimerText').innerHTML = t.disclaimerHtml;
@@ -725,6 +798,26 @@
 
       document.getElementById('langEn').addEventListener('click', function() { lang = 'en'; applyLang(); });
       document.getElementById('langAr').addEventListener('click', function() { lang = 'ar'; applyLang(); });
+      document.getElementById('welcomeModeGeneral').addEventListener('click', function() {
+        chatMode = 'general';
+        document.querySelectorAll('.pyxon-widget__welcome-mode-btn').forEach(function(b) { b.classList.remove('active'); });
+        this.classList.add('active');
+      });
+      document.getElementById('welcomeModeRag').addEventListener('click', function() {
+        chatMode = 'rag';
+        document.querySelectorAll('.pyxon-widget__welcome-mode-btn').forEach(function(b) { b.classList.remove('active'); });
+        this.classList.add('active');
+      });
+      document.getElementById('modeGeneral').addEventListener('click', function() {
+        chatMode = 'general';
+        document.querySelectorAll('.pyxon-widget__mode-btn').forEach(function(b) { b.classList.remove('active'); });
+        this.classList.add('active');
+      });
+      document.getElementById('modeRag').addEventListener('click', function() {
+        chatMode = 'rag';
+        document.querySelectorAll('.pyxon-widget__mode-btn').forEach(function(b) { b.classList.remove('active'); });
+        this.classList.add('active');
+      });
       applyLang();
 
       function showStep(s) {
@@ -734,6 +827,9 @@
         stepForm.classList.toggle('hidden', s !== 2);
         chatView.classList.toggle('hidden', s !== 3);
         if (s === 3) {
+          document.querySelectorAll('.pyxon-widget__mode-btn').forEach(function(b) {
+            b.classList.toggle('active', b.getAttribute('data-mode') === chatMode);
+          });
           inputEl.focus();
         }
       }
@@ -836,6 +932,7 @@
       }
       function renderMarkdown(text) {
         var s = escapeHtml(text);
+        s = s.replace(/\n{3,}/g, '\n\n');
         var urlRe = '(https?:\\/\\/[^\\s\\)"\']+)';
         s = s.replace(new RegExp('!\\[([^\\]]*)\\]\\(' + urlRe + '\\)', 'g'), function(_, alt, u) {
           return safeUrl(u) ? '<a href="' + u + '" target="_blank" rel="noopener noreferrer">' + (alt || 'Image link') + '</a>' : _;
@@ -849,16 +946,24 @@
         s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
         var lines = s.split('\n');
         var out = [];
+        var inList = false;
         for (var i = 0; i < lines.length; i++) {
           var line = lines[i];
+          var bullet = line.match(/^[\*\-\•]\s+(.+)$/);
           var m = line.match(/^(#{1,6})\s+(.+)$/);
           if (m) {
+            if (inList) { out.push('</ul>'); inList = false; }
             var level = Math.min(m[1].length, 6);
             out.push('<span class="md-h' + level + '">' + m[2] + '</span>');
+          } else if (bullet) {
+            if (!inList) { out.push('<ul class="pyxon-widget__msg-list">'); inList = true; }
+            out.push('<li>' + bullet[1] + '</li>');
           } else {
+            if (inList) { out.push('</ul>'); inList = false; }
             out.push(line);
           }
         }
+        if (inList) out.push('</ul>');
         s = out.join('<br>');
         return s;
       }
@@ -912,7 +1017,7 @@
         fetch(apiBase + '/chat/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text })
+          body: JSON.stringify({ message: text, mode: chatMode || 'general' })
         })
           .then(function(r) { return r.json().catch(function() { return {}; }); })
           .then(function(data) {
