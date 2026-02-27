@@ -27,8 +27,18 @@ This repository implements an **agentic chatbot** that meets all three task requ
 | **File upload and analysis** | ✅ | Swarm: user can attach a file (paperclip in widget or multipart API); **analyst** agent summarizes/answers questions about the file; synthesizer uses analysis in the answer. |
 | **Coding agent** | ✅ | Swarm: **coder** agent generates and runs Python (safe subprocess, timeout, output limit); results fed to synthesizer. `app/tools/code.py`, `app/swarm/graph.py`. |
 | **Embeddable widget** | ✅ | Floating chat bubble + panel at `/widget`; iframe or `embed.js`. Multilingual (EN/AR), theme toggle, mode toggle (General/RAG/Swarm), file attach. |
-| **Tests / benchmark** | ⚠️ Partial | `test_chat_file.py` tests swarm + file upload via API. No full pytest suite or fixed Q&A benchmark. |
+| **Tests / benchmark** | ✅ Script | `test_chat_file.py` runs example questions across General, RAG, and Swarm (and optional file upload). See “Run tests” below. |
 | **Docker / K8s outline** | ⚠️ Outline | Deployment outline in “Optional: Deployment” section below; no Dockerfile or Helm in repo. |
+
+### Choosing a mode (General vs RAG vs Swarm)
+
+**Yes, the choice affects which pipeline runs.** The system does not automatically pick a mode for you.
+
+- **General** — Single agent with search and URL tools. Use for: web search, “summarize this URL”, “what does this API return?”. Optional: past search/URL results are retrieved from Qdrant and passed as context (RAG over search results).
+- **RAG** — Company knowledge only. Use for: questions about Pyxon (services, offices, cybersecurity, IoT, AI, etc.). Requires Qdrant and ingested PDFs. Intent classifier routes to one or more sub-agents; no search or URL fetch in this mode.
+- **Swarm** — Multi-agent (supervisor → researcher / fetcher / analyst / coder → synthesizer). Use for: search + synthesis, URL fetch + synthesis, file upload + analysis, or code execution (e.g. “what is 2+2?”, “first 5 primes”). The supervisor decides which specialist(s) to call; you do not choose them.
+
+Pick the mode that matches your goal. For “weather in Riyadh” or “T20 score” use **General** (search). For “what does Pyxon offer?” use **RAG** (company docs) or **General** (search). For “summarize https://python.org/about” use **General** (URL) or **Swarm** (fetcher + synthesizer).
 
 ---
 
@@ -203,6 +213,26 @@ curl -X POST http://localhost:8002/chat/ \
   -H "Content-Type: application/json" \
   -d '{"message":"What is 2+2?","mode":"swarm","include_trace":true}'
 ```
+
+### 8. Run tests (example outcomes)
+
+With the server running, run the test script from the project root (venv activated):
+
+**Windows:**
+
+```powershell
+.\.venv\Scripts\activate
+python test_chat_file.py
+```
+
+**macOS / Linux:**
+
+```bash
+source .venv/bin/activate
+python test_chat_file.py
+```
+
+The script sends the example questions from “Example questions and sample outputs” to the API (General, RAG, Swarm) and checks for HTTP 200 and non-empty output. Optional: `--quick` runs a smaller subset with a shorter timeout; `--file <path>` sets the file for the swarm file-upload test (default: `test_upload.txt` if present).
 
 ---
 
@@ -387,6 +417,113 @@ curl -X POST http://localhost:8002/chat/ -H "Content-Type: application/json" -d 
 
 ---
 
+## Example Questions and Sample Outputs
+
+Below are example questions and representative answers produced by the chatbot. Use **General** for search/URL questions, **RAG** for Pyxon company questions (with Qdrant + ingest), and **Swarm** for multi-agent (search, URL fetch, or code). See “Choosing a mode” above.
+
+**Greeting (after name/email in widget):**  
+*Hi Fahad Ramzan! How can I help you today?*
+
+---
+
+### 1. What is the current weather in Riyadh?  
+**Mode:** General (search)
+
+**Sample output:**
+
+> The current weather in Riyadh, Saudi Arabia, is mostly sunny with a temperature of 82°F. The humidity is at 16%, and there is no precipitation expected. Winds are blowing at 12 mph.
+
+---
+
+### 2. What is the T20 World Cup live score?  
+**Mode:** General (search)
+
+**Sample output:**
+
+> As of the latest updates from the ICC Men's T20 World Cup, here are the recent match results:
+>
+> 1. **India vs. Zimbabwe** — India 256/4 (20 overs) defeated Zimbabwe 184/6 (20 overs). India won by 72 runs.  
+> 2. **West Indies vs. South Africa** — West Indies 176/8 lost to South Africa 177/1 (16.1 overs). South Africa won by 9 wickets.  
+> 3. **New Zealand vs. Sri Lanka** — New Zealand 168/7 defeated Sri Lanka 107/8. New Zealand won by 61 runs.  
+> 4. **Pakistan vs. England** — Pakistan 164/9 lost to England 166/8 (19.1 overs). England won by 2 wickets.  
+> 5. **West Indies vs. Zimbabwe** — West Indies 254/6 defeated Zimbabwe 147 (17.4 overs). West Indies won by 107 runs.  
+> 6. **South Africa vs. India** — South Africa 187/7 defeated India 111 (18.5 overs). South Africa won by 76 runs.
+>
+> If you need live scores for ongoing matches, please specify the teams or matches you are interested in!
+
+---
+
+### 3. What services does Pyxon offer and where are the offices located?  
+**Mode:** RAG (company knowledge; requires Qdrant + ingested PDFs)
+
+**Sample output:**
+
+> **Pyxon services:**  
+> Pyxon offers digital transformation services, including:  
+> 1. **AI innovations** — Enterprise-grade Arabic AI with emphasis on data privacy.  
+> 2. **IoT solutions** — Intelligent connected systems for transportation, healthcare, and industrial applications.  
+> 3. **Cybersecurity** — AI-powered defense, zero trust architecture, compliance automation.  
+> 4. **Cloud DevOps & RPA** — Cloud migration, DevOps, RPA, Microsoft Business Applications.
+>
+> **Office locations:**  
+> Pyxon is headquartered in **Riyadh, Saudi Arabia**. They serve clients across the Middle East and Africa (UAE, Egypt, Qatar, Kuwait, Bahrain, Oman, Jordan, Lebanon).
+
+---
+
+### 4. Summarize the content at https://www.python.org/about/  
+**Mode:** General (URL fetch) or Swarm (fetcher + synthesizer)
+
+**Sample output:**
+
+> The “About Python” page highlights Python as a powerful, fast, and easy-to-learn open-source language that runs on many platforms. Key points: **Getting started** — guides for programmers and non-programmers, installation, code samples. **Applications** — web development, databases, scientific computing, education, software development; PyPI hosts thousands of third-party modules. **Community** — conferences, workshops, documentation, mailing lists, IRC. **Open source** — OSI-approved license, free for commercial use. The **Python Software Foundation (PSF)** promotes and supports the community.
+
+---
+
+### 5. What does https://api.github.com/ return? Describe the main keys.  
+**Mode:** General (URL fetch) or Swarm (fetcher + synthesizer)
+
+**Sample output:**
+
+> The GitHub API root returns a JSON object with URLs for various resources. Main keys include: `current_user_url`, `authorizations_url`, `code_search_url`, `commit_search_url`, `emails_url`, `emojis_url`, `events_url`, `feeds_url`, `followers_url`, `following_url`, `gists_url`, `hub_url`, `issue_search_url`, `issues_url`, `keys_url`, `notifications_url`, `organization_url`, `public_gists_url`, `rate_limit_url`, `repository_url`, `user_url`, and others. These provide structured access to user accounts, repositories, issues, search, and more.
+
+---
+
+### 6. What is the current exchange rate of EUR to USD?  
+**Mode:** Swarm (researcher + synthesizer) or General (search)
+
+**Sample output:**
+
+> The current exchange rate is approximately 1 EUR to 1.18 USD.
+
+---
+
+### 7. Fetch https://httpbin.org/json and summarize what it returns.  
+**Mode:** Swarm (fetcher + synthesizer) or General (URL fetch)
+
+**Sample output:**
+
+> The response from https://httpbin.org/json returns a JSON object with a sample **slideshow** structure: **Author:** "Yours Truly". **Date:** "date of publication". **Slides:** an array of slide objects — e.g. Slide 1: title "Wake up to WonderWidgets!", type "all"; Slide 2: title "Overview", type "all", items including "Why WonderWidgets are great" and "Who buys WonderWidgets". It is a simple representation of a slideshow for a fictional product.
+
+---
+
+### 8. Find the Wikipedia page for "LangChain" and in one paragraph tell me what it is.  
+**Mode:** Swarm (researcher + fetcher + synthesizer) or General (search + URL)
+
+**Sample output:**
+
+> LangChain is a software framework designed to integrate large language models (LLMs) into applications. It simplifies connecting language models to specific tasks and supports use cases such as document analysis and other advanced language processing applications.
+
+---
+
+### 9. Generate a list of the first 5 prime numbers using Python.  
+**Mode:** Swarm (coder + synthesizer)
+
+**Sample output:**
+
+> You can generate the first 5 prime numbers in Python with a small script (e.g. an `is_prime` check and a loop). When run, the output is: **[2, 3, 5, 7, 11]**.
+
+---
+
 ## Deliverables Checklist
 
 | Deliverable | Status | Location / notes |
@@ -399,7 +536,7 @@ curl -X POST http://localhost:8002/chat/ -H "Content-Type: application/json" -d 
 | README: architecture | ✅ | “Architecture and Data Flow”, “RAG: … Full Detail” |
 | README: example questions | ✅ | “Testing Guide” |
 | Optional: RAG | ✅ | Company RAG (CrewAI, robots.txt, Qdrant); General persist/retrieve |
-| Optional: tests/benchmark | ⚠️ Partial | `test_chat_file.py` (swarm + file) |
+| Optional: tests/benchmark | ✅ Script | `test_chat_file.py` (General, RAG, Swarm, file upload) |
 | Optional: Docker/K8s | ⚠️ Outline | See “Optional: Deployment” |
 
 ---
@@ -416,7 +553,7 @@ curl -X POST http://localhost:8002/chat/ -H "Content-Type: application/json" -d 
 | RAG (company, CrewAI, robots.txt, Qdrant, chunking, models) | “RAG: Pyxon Website Scraping…” above; `app/rag/` |
 | File upload + analyst | `app/api/routes/chat.py` (multipart), `app/swarm/graph.py` (analyst), `app/utils/file_extract.py` |
 | Coding agent | `app/tools/code.py`, `app/swarm/graph.py` (_coder_node) |
-| File-upload test script | `test_chat_file.py` |
+| Test script (example outcomes) | `test_chat_file.py` — run with server up; see “Run tests” in How to Run |
 
 ---
 
