@@ -852,6 +852,25 @@
       var feedbackOptionsContainer = document.getElementById('feedbackOptions');
       var selectedRating = 0;
       var selectedOptions = [];
+      var sessionId = null;
+      var idleTimer = null;
+      var IDLE_MS = 5 * 60 * 1000;  // 5 minutes
+      function generateSessionId() {
+        return 's_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
+      }
+      function resetIdleTimer() {
+        if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = null;
+        if (step !== 3) return;
+        idleTimer = setTimeout(function() {
+          idleTimer = null;
+          showFeedbackView();
+        }, IDLE_MS);
+      }
+      function clearIdleTimer() {
+        if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = null;
+      }
       var themeBtn = document.getElementById('themeBtn');
       var iconSun = document.getElementById('iconSun');
       var iconMoon = document.getElementById('iconMoon');
@@ -1057,7 +1076,16 @@
         var emailEl = document.getElementById('userEmail');
         userName = (nameEl && nameEl.value) ? nameEl.value.trim() : '';
         userEmail = (emailEl && emailEl.value) ? emailEl.value.trim() : '';
+        sessionId = generateSessionId();
+        fetch(apiBase + '/session/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId, user_name: userName || null, user_email: userEmail || null })
+        }).then(function(r) { return r.json().catch(function() { return {}; }); }).then(function(data) {
+          if (data.session_id) sessionId = data.session_id;
+        }).catch(function() {});
         showStep(3);
+        resetIdleTimer();
         if (emptyState) emptyState.classList.remove('hidden');
         if (userName) {
           var t = i18n[lang] || i18n.en;
@@ -1120,6 +1148,7 @@
         }
       }
       function closePanelAndResetFeedback() {
+        clearIdleTimer();
         if (feedbackOverlay) {
           feedbackOverlay.classList.add('hidden');
           feedbackOverlay.classList.remove('is-open');
@@ -1128,6 +1157,7 @@
         closePanel();
       }
       function showFeedbackView() {
+        clearIdleTimer();
         if (!feedbackOverlay) return;
         feedbackOverlay.classList.remove('hidden');
         requestAnimationFrame(function() { feedbackOverlay.classList.add('is-open'); });
@@ -1158,26 +1188,30 @@
           });
         });
       }
+      function sendFeedbackAndClose(payload) {
+        payload.session_id = sessionId || undefined;
+        fetch(apiBase + '/feedback/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(function() {}).finally(function() {
+          if (feedbackCard) feedbackCard.classList.add('hidden');
+          if (feedbackThanks) feedbackThanks.classList.remove('hidden');
+          setTimeout(closePanelAndResetFeedback, 1200);
+        });
+      }
       if (feedbackSubmit) {
         feedbackSubmit.addEventListener('click', function() {
           var rating = selectedRating || 5;
           var text = (feedbackText && feedbackText.value) ? feedbackText.value.trim() : null;
           var options = selectedOptions.length ? selectedOptions : null;
-          fetch(apiBase + '/feedback/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ rating: rating, options: options, feedback: text })
-          }).catch(function() {}).finally(function() {
-            if (feedbackCard) feedbackCard.classList.add('hidden');
-            if (feedbackThanks) feedbackThanks.classList.remove('hidden');
-            setTimeout(closePanelAndResetFeedback, 1200);
-          });
+          sendFeedbackAndClose({ rating: rating, options: options, feedback: text });
         });
       }
-      if (feedbackSkip) feedbackSkip.addEventListener('click', closePanelAndResetFeedback);
+      if (feedbackSkip) feedbackSkip.addEventListener('click', function() { sendFeedbackAndClose({}); });
       if (feedbackOverlay) {
         feedbackOverlay.addEventListener('click', function(e) {
-          if (e.target === feedbackOverlay) closePanelAndResetFeedback();
+          if (e.target === feedbackOverlay) sendFeedbackAndClose({});
         });
       }
 
@@ -1337,18 +1371,21 @@
           fd.append('message', text);
           fd.append('mode', chatMode || 'general');
           fd.append('include_trace', includeTrace ? 'true' : 'false');
+          if (sessionId) fd.append('session_id', sessionId);
           fd.append('file', fileInput.files[0]);
           opts.body = fd;
         } else {
           opts.headers = { 'Content-Type': 'application/json' };
-          opts.body = JSON.stringify({ message: text, mode: chatMode || 'general', include_trace: includeTrace });
+          opts.body = JSON.stringify({ message: text, mode: chatMode || 'general', include_trace: includeTrace, session_id: sessionId || undefined });
         }
         fetch(apiBase + '/chat/', opts)
           .then(function(r) { return r.json().catch(function() { return {}; }); })
           .then(function(data) {
             showTyping(false);
+            if (data.session_id) sessionId = data.session_id;
             if (data.output != null) addMessage('assistant', data.output);
             else addMessage('assistant', data.detail || data.message || 'Something went wrong.', true);
+            resetIdleTimer();
           })
           .catch(function(e) {
             showTyping(false);

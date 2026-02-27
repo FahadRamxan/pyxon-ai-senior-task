@@ -1,6 +1,7 @@
 """Chat API: send a message to the agent and get a response."""
 
-from typing import Any, Literal
+import uuid
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
@@ -9,6 +10,7 @@ from pydantic import BaseModel, Field
 from app.agents import get_chat_agent
 from app.rag import rag_answer
 from app.rag.search_store import persist_search_content, retrieve_search_context
+from app.session_store import add_message_id, get_or_create_session
 from app.swarm import run_swarm
 from app.utils.file_extract import extract_text_from_file
 
@@ -24,6 +26,7 @@ class ChatRequest(BaseModel):
         description="general = search/URL + persist; rag = PDF RAG; swarm = multi-agent (supervisor + researcher + fetcher + analyst + coder + synthesizer).",
     )
     include_trace: bool = Field(default=False, description="If true and mode=swarm, include flow trace in response.")
+    session_id: Optional[str] = Field(default=None, description="Chat session ID; created if omitted.")
 
 
 class ChatResponse(BaseModel):
@@ -32,6 +35,8 @@ class ChatResponse(BaseModel):
     output: str = Field(..., description="Agent's reply.")
     success: bool = Field(default=True, description="Whether the request succeeded.")
     trace: list[dict] | None = Field(default=None, description="Swarm flow steps (only when mode=swarm and include_trace=true).")
+    session_id: Optional[str] = Field(default=None, description="Session ID for this chat (use for feedback).")
+    message_id: Optional[str] = Field(default=None, description="ID of the assistant message just produced.")
 
 
 def _last_ai_content(messages: list[Any]) -> str:
@@ -112,6 +117,7 @@ async def chat(request: Request) -> ChatResponse:
         if mode not in ("general", "rag", "swarm"):
             mode = "general"
         include_trace = form.get("include_trace") in ("true", "1", "yes")
+        session_id = (form.get("session_id") or "").strip() or None
         uploaded_files: list[dict] = []
         file = form.get("file")
         if file and getattr(file, "filename", None) and callable(getattr(file, "read", None)):
@@ -121,16 +127,30 @@ async def chat(request: Request) -> ChatResponse:
                 uploaded_files.append({"filename": file.filename, "content": text})
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"File read failed: {e}") from e
-        return _chat_handle(message=message, mode=mode, include_trace=include_trace, uploaded_files=uploaded_files or None)
+        sid = get_or_create_session(session_id)
+        add_message_id(sid, str(uuid.uuid4()))  # user message id
+        resp = _chat_handle(message=message, mode=mode, include_trace=include_trace, uploaded_files=uploaded_files or None)
+        assistant_msg_id = str(uuid.uuid4())
+        add_message_id(sid, assistant_msg_id)
+        resp.session_id = sid
+        resp.message_id = assistant_msg_id
+        return resp
 
     try:
         body = await request.json()
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid JSON: {e}") from e
     req = ChatRequest.model_validate(body)
-    return _chat_handle(
+    sid = get_or_create_session(req.session_id)
+    add_message_id(sid, str(uuid.uuid4()))  # user message id
+    resp = _chat_handle(
         message=req.message,
         mode=req.mode,
         include_trace=req.include_trace,
         uploaded_files=None,
     )
+    assistant_msg_id = str(uuid.uuid4())
+    add_message_id(sid, assistant_msg_id)
+    resp.session_id = sid
+    resp.message_id = assistant_msg_id
+    return resp

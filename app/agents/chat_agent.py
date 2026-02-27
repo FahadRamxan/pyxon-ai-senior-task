@@ -1,11 +1,27 @@
 """ReAct-style agent with search and URL/API fetch tools, powered by GPT-4o-mini."""
 
 from langchain.agents import create_agent
+from langchain_core.tools import Tool
 from langchain_openai import ChatOpenAI
 
 from app.config import settings
-from app.core.constants import DEFAULT_LLM_MODEL, DEFAULT_LLM_TEMPERATURE
+from app.core.constants import DEFAULT_LLM_MODEL, DEFAULT_LLM_TEMPERATURE, MAX_TOOL_OUTPUT_CHARS
 from app.tools import get_search_tool, get_url_fetch_tool, get_url_post_tool
+
+
+def _truncate_tool_output(tool, max_chars: int = MAX_TOOL_OUTPUT_CHARS):
+    """Wrap a tool so its string output is capped to max_chars to avoid exceeding model context length."""
+    def truncated_func(input_arg):
+        result = tool.invoke(input_arg)
+        s = result if isinstance(result, str) else str(result)
+        if len(s) > max_chars:
+            return s[:max_chars] + "\n\n[Output truncated for context length.]"
+        return result
+    return Tool(
+        name=tool.name,
+        description=tool.description,
+        func=truncated_func,
+    )
 
 SYSTEM_PROMPT = """You can search the web and call URLs/APIs to get data. Use the results to answer the user.
 
@@ -26,12 +42,12 @@ def get_llm() -> ChatOpenAI:
 
 
 def get_chat_agent():
-    """Build an agent with search and URL fetch (GET + POST) tools."""
+    """Build an agent with search and URL fetch (GET + POST) tools. Tool outputs are truncated to avoid context overflow."""
     llm = get_llm()
     tools = [
-        get_search_tool(),
-        get_url_fetch_tool(),
-        get_url_post_tool(),
+        _truncate_tool_output(get_search_tool()),
+        _truncate_tool_output(get_url_fetch_tool()),
+        _truncate_tool_output(get_url_post_tool()),
     ]
     graph = create_agent(
         llm,

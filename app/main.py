@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from app.api.routes import chat_router, feedback_router
+from app.api.routes import chat_router, feedback_router, session_router
 
 # Resolve to absolute path so it works regardless of working directory
 _STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -29,6 +29,7 @@ app = FastAPI(
 
 app.include_router(chat_router)
 app.include_router(feedback_router)
+app.include_router(session_router)
 
 # Serve static files (widget, embed.js) so /static/widget.html works too
 if _STATIC_DIR.is_dir():

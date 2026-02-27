@@ -22,6 +22,9 @@ build/
 *.swp
 *.swo
 
+# Session logs (optional: remove this line to commit data/chat_sessions.txt)
+data/
+
 # OS
 .DS_Store
 Thumbs.db

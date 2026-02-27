@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repository implements an **agentic chatbot** that meets all three task requirements plus optional and extra features: an agent with **search** and **URL/API** tools, an **agent swarm** (multi-agent system) with LangGraph, **RAG** over company content (including Pyxon website scraping with CrewAI and ethical robots.txt compliance) and over search/URL results, **file upload and analysis**, and a **coding agent**. The app exposes a FastAPI backend, a full-page chat UI, and an embeddable widget.
+This repository implements an **agentic chatbot** that meets all three task requirements plus optional and extra features: an agent with **search** and **URL/API** tools, an **agent swarm** (multi-agent system) with LangGraph, **RAG** over company content (including Pyxon website scraping with CrewAI and ethical robots.txt compliance) and over search/URL results, **file upload and analysis**, and a **coding agent**. The app exposes a FastAPI backend, a full-page chat UI, and an embeddable widget. **Session tracking** is built in: each chat has a unique session ID and message IDs; when the user ends the chat (or after 5 minutes of inactivity), **start time**, **end time**, **duration**, **user name/email**, and **feedback** are written to a **session log file** in the project folder. Tool outputs are **truncated** to avoid exceeding the model’s context length.
 
 ---
 
@@ -27,6 +27,9 @@ This repository implements an **agentic chatbot** that meets all three task requ
 | **File upload and analysis** | ✅ | Swarm: user can attach a file (paperclip in widget or multipart API); **analyst** agent summarizes/answers questions about the file; synthesizer uses analysis in the answer. |
 | **Coding agent** | ✅ | Swarm: **coder** agent generates and runs Python (safe subprocess, timeout, output limit); results fed to synthesizer. `app/tools/code.py`, `app/swarm/graph.py`. |
 | **Embeddable widget** | ✅ | Floating chat bubble + panel at `/widget`; iframe or `embed.js`. Multilingual (EN/AR), theme toggle, mode toggle (General/RAG/Swarm), file attach. |
+| **Session tracking & log file** | ✅ | Each chat has a **session ID**; each message has a **message ID**. On end chat (or skip), **start time**, **end time**, **duration**, **user name**, **user email**, **rating**, **options**, and **message IDs** are appended to **`data/chat_sessions.txt`** in the project folder. See "Session tracking and session log" below. |
+| **5-minute idle auto-end** | ✅ | If the user sends no message for 5 minutes, the feedback modal is shown automatically and the session can be closed (submit or skip). |
+| **Context length safeguard** | ✅ | General-mode tool outputs (search, URL fetch) are truncated to **12,000 characters** per response so the agent stays within the model's context limit (e.g. 128k tokens). `app/agents/chat_agent.py`, `app/core/constants.py` (`MAX_TOOL_OUTPUT_CHARS`). |
 | **Tests / benchmark** | ✅ Script | `test_chat_file.py` runs example questions across General, RAG, and Swarm (and optional file upload). See “Run tests” below. |
 | **Docker / K8s outline** | ⚠️ Outline | Deployment outline in “Optional: Deployment” section below; no Dockerfile or Helm in repo. |
 
@@ -166,7 +169,7 @@ uvicorn app.main:app --port 8002 --reload
 - **Full-page chat:** http://localhost:8002/  
 - **Widget:** http://localhost:8002/widget  
 - **API docs:** http://localhost:8002/docs  
-- **Chat API:** `POST /chat/` with JSON `{"message": "...", "mode": "general"|"rag"|"swarm", "include_trace": true|false}` or multipart with optional `file`.
+- **Chat API:** `POST /chat/` with JSON `{"message": "...", "mode": "general"|"rag"|"swarm", "include_trace": true|false, "session_id": "optional"}` or multipart with optional `file`. Response includes `session_id` and `message_id`. **Session start:** `POST /session/start` with optional `session_id`, `user_name`, `user_email` to record start time and user name/email. **Feedback:** `POST /feedback/` with `session_id`, optional `rating`, `options`, `feedback` to record end time, duration, and append a line to the session log file.
 
 ### 6. Run the end-to-end example script (no server required)
 
@@ -265,6 +268,30 @@ The script sends the example questions from “Example questions and sample outp
 3. **Synthesizer:** If multiple intents, sub-agent answers are merged into one response.
 
 **Code:** `app/rag/orchestrator.py`, `app/rag/intent.py`, `app/rag/agents.py`, `app/rag/qdrant_client.py`.
+
+---
+
+## Session tracking and session log
+
+Each chat has a **session ID** (generated when the user clicks "Begin chat" in the widget, or on first message). Each message gets a unique **message ID** (assigned by the backend). When the user **ends the chat** (clicks "End chat" and submits or skips feedback) or the **5-minute idle** timer fires and they close the feedback modal, the backend:
+
+1. Computes **end time** and **duration** (end − start).
+2. Appends one **tab-separated line** to the session log file.
+
+**Log file location:** **`data/chat_sessions.txt`** in the **project folder** (the directory containing the `app` package). The path is resolved from the app’s install location, so the file is always written there regardless of the process working directory.
+
+**Columns (header + one line per ended session):**  
+`session_id`, `start_time_utc`, `end_time_utc`, `duration_seconds`, `message_count`, `rating`, `options`, `feedback_snippet`, `user_name`, `user_email`, `message_ids`
+
+**APIs:**
+
+- **`POST /session/start`** — Call when the user enters the chat (e.g. after name/email). Body: optional `session_id`, optional `user_name`, `user_email`. Creates the session and records start time (and name/email) so they are included when the session is written to the log.
+- **`POST /chat/`** — Request may include `session_id`; response includes `session_id` and `message_id` for the assistant reply. If no session_id is sent, one is created and returned.
+- **`POST /feedback/`** — Body: optional `session_id`, optional `rating` (1–5), optional `options` (list of feedback option keys), optional `feedback` (text). If `session_id` is provided and the session exists, the session is closed and one line is appended to `data/chat_sessions.txt`.
+
+**How to view the log:** Open `data/chat_sessions.txt` in the project folder, or run `Get-Content .\data\chat_sessions.txt` (PowerShell) / `type data\chat_sessions.txt` (CMD) from the project root. The file is created after the first session is ended (feedback submitted or skipped). The `data/` directory is in `.gitignore` by default so the log is not committed.
+
+**Code:** `app/session_store.py`, `app/api/routes/session.py`, `app/api/routes/feedback.py`, widget in `app/static/widget.html`.
 
 ---
 
@@ -547,12 +574,18 @@ The following were implemented in addition to the requested deliverables (end-to
 
 | Feature | Description |
 |--------|-------------|
-| **End-chat feedback (modal + options)** | When the user clicks **End chat** in the widget, a **modal popup** appears (overlay + centered card) instead of replacing the chat view. The user can give a **star rating (1–5)**, select one or more **clickable feedback options** (e.g. "Very helpful", "Fast response", "Answer was inaccurate", "Response was slow", "Could not find what I needed", "Other"), and optionally add free-text comments. Selections are sent to the backend and recorded. Fully confined within the chatbot panel (no scroll). |
-| **Feedback API** | `POST /feedback/` accepts JSON: `rating` (1–5), optional `options` (list of selected option keys), and optional `feedback` (text). Used to log or persist end-chat feedback for analytics; not required by the deliverables. See `app/api/routes/feedback.py`. |
+| **Session ID and message IDs** | Each chat has a unique **session ID** (created when the user starts the chat or on first message). Each user and assistant message is assigned a **message ID**. The widget sends `session_id` with every `POST /chat/` and `POST /feedback/`; the chat response includes `session_id` and `message_id`. |
+| **Chat start/end time and duration** | Session **start time** is recorded when `POST /session/start` is called (or when the first message is sent). **End time** is set when `POST /feedback/` is called (submit or skip). **Duration** is computed as end − start and written to the session log. |
+| **Session log file (project folder)** | When a session ends, one line is appended to **`data/chat_sessions.txt`** in the **project folder**. The path is absolute (derived from the app package location), so the file is always in the same place. Columns: session_id, start_time_utc, end_time_utc, duration_seconds, message_count, rating, options, feedback_snippet, **user_name**, **user_email**, message_ids. See "Session tracking and session log" above. |
+| **End-chat feedback (modal + options)** | When the user clicks **End chat** in the widget, a **modal popup** appears (overlay + centered card). The user can give a **star rating (1–5)**, select one or more **clickable feedback options** (e.g. "Very helpful", "Fast response", "Answer was inaccurate", "Response was slow", "Could not find what I needed", "Other"), and optionally add free-text comments. Selections are sent to the backend with `session_id` and recorded in the log file. Modal is confined within the panel (no scroll). |
+| **Feedback API** | `POST /feedback/` accepts JSON: optional `session_id`, optional `rating` (1–5), optional `options` (list of selected option keys), optional `feedback` (text). If `session_id` is provided, the session is closed and one line is appended to `data/chat_sessions.txt`. See `app/api/routes/feedback.py`. |
+| **Session start API** | `POST /session/start` accepts optional `session_id`, optional `user_name`, optional `user_email`. Creates or reuses the session and stores start time and name/email so they appear in the log when the session ends. See `app/api/routes/session.py`. |
+| **5-minute idle auto-end** | If the user sends no message for 5 minutes, the feedback modal is shown automatically. Submitting or skipping feedback then closes the session and writes the log line as usual. |
 | **Widget onboarding and UX** | **Disclaimer** (terms of use) and **name/email form** before starting the chat; **theme toggle** (dark/light); **language toggle** (EN / عربي) with RTL support; **mode selector** (General / RAG / Swarm) on welcome and in chat; **file attachment** in the widget. The deliverables did not specify a full chat UI or embeddable widget UX. |
 | **Compact feedback modal** | Feedback modal is sized to fit inside the chatbot panel (max-height 85% of panel, overflow hidden). Text and control sizes are reduced so the entire dialog fits without scrolling. |
+| **Context length safeguard** | General-mode tool outputs (search, URL fetch) are truncated to 12,000 characters per response to avoid exceeding the model's context limit (e.g. 128k tokens). Configurable via `MAX_TOOL_OUTPUT_CHARS` in `app/core/constants.py`. |
 
-**Summary:** The task asked for one end-to-end example, README (run, architecture, examples), and optional RAG/tests/Docker. The above features (feedback flow, feedback API, full widget onboarding and i18n/theme/mode, and compact modal UX) are extra and not part of that scope.
+**Summary:** The task asked for one end-to-end example, README (run, architecture, examples), and optional RAG/tests/Docker. The above features (session tracking, session log file with name/email, feedback flow and API, session start API, 5-min idle, widget onboarding and i18n/theme/mode, compact modal, and context-length truncation) are extra and not part of that scope.
 
 ---
 
@@ -569,6 +602,11 @@ The following were implemented in addition to the requested deliverables (end-to
 | File upload + analyst | `app/api/routes/chat.py` (multipart), `app/swarm/graph.py` (analyst), `app/utils/file_extract.py` |
 | Coding agent | `app/tools/code.py`, `app/swarm/graph.py` (_coder_node) |
 | Test script (example outcomes) | `test_chat_file.py` — run with server up; see “Run tests” in How to Run |
+
+| Session store & log file | `app/session_store.py`; log file: **`data/chat_sessions.txt`** in project folder |
+| Session start API | `POST /session/start` — `app/api/routes/session.py` |
+| Feedback API (with session_id) | `POST /feedback/` — `app/api/routes/feedback.py` |
+| Context length (tool truncation) | `app/agents/chat_agent.py`, `app/core/constants.py` (`MAX_TOOL_OUTPUT_CHARS`) |
 
 ---
 
