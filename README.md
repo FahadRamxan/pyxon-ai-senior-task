@@ -15,8 +15,8 @@ This repository implements an **agentic chatbot** that meets all three task requ
 | **1. Agent with search/data source + LLM** | ✅ | **General** mode: ReAct-style agent with SerpAPI (or Google CSE) search. Queries search, consumes results, LLM synthesizes answer. `app/agents/chat_agent.py`, `app/tools/search.py`. |
 | **2. Agent that requests URLs/APIs + LLM** | ✅ | **General** mode: `RequestsGetTool` and `RequestsPostTool`. Fetches URLs/APIs, interprets content, LLM answers. `app/agents/chat_agent.py`, `app/tools/url_fetch.py`. |
 | **3. Agent swarm (multi-agent)** | ✅ | **Swarm** mode: LangGraph supervisor → researcher (search), fetcher (URL), analyst (file), coder (Python), synthesizer. `app/swarm/graph.py`, `app/swarm/state.py`. |
-| **4. Full end-to-end example** | ✅ | Script: `examples/run_e2e_example.py`. Question → fetch (search/URL or swarm) → optional RAG persist/retrieve → LLM answer (and swarm trace). |
-| **5. README (run, architecture, examples)** | ✅ | This document: exact run commands (Windows/macOS/Linux), architecture, RAG detail, testing guide, deliverables checklist. |
+| **4. Full end-to-end example + small benchmark** | ✅ | **E2E script:** `examples/run_e2e_example.py` — takes a question, uses agent(s) to fetch (search/URL or swarm), optional RAG, LLM answer (and swarm trace). **Small benchmark:** `test_chat_file.py` — fixed Q&A pairs across General, RAG, and Swarm (and optional file upload); verifies HTTP 200 and non-empty output. See “How to Run” steps 6 and 8. |
+| **5. README (run, architecture, examples)** | ✅ | This document: exact run commands (Windows/macOS/Linux), architecture, RAG detail, testing guide, example questions and sample outputs, deliverables checklist. |
 
 ### Optional and extra
 
@@ -30,7 +30,7 @@ This repository implements an **agentic chatbot** that meets all three task requ
 | **Session tracking & log file** | ✅ | Each chat has a **session ID**; each message has a **message ID**. On end chat (or skip), **start time**, **end time**, **duration**, **user name**, **user email**, **rating**, **options**, and **message IDs** are appended to **`data/chat_sessions.txt`** in the project folder. See "Session tracking and session log" below. |
 | **5-minute idle auto-end** | ✅ | If the user sends no message for 5 minutes, the feedback modal is shown automatically and the session can be closed (submit or skip). |
 | **Context length safeguard** | ✅ | General-mode tool outputs (search, URL fetch) are truncated to **12,000 characters** per response so the agent stays within the model's context limit (e.g. 128k tokens). `app/agents/chat_agent.py`, `app/core/constants.py` (`MAX_TOOL_OUTPUT_CHARS`). |
-| **Tests / benchmark** | ✅ Script | `test_chat_file.py` runs example questions across General, RAG, and Swarm (and optional file upload). See “Run tests” below. |
+| **Tests / benchmark** | ✅ | `test_chat_file.py` runs fixed Q&A pairs across General, RAG, and Swarm (and optional file upload); verifies HTTP 200 and non-empty output. See step 8 in How to Run. |
 | **Docker / K8s outline** | ⚠️ Outline | Deployment outline in “Optional: Deployment” section below; no Dockerfile or Helm in repo. |
 
 ### Choosing a mode (General vs RAG vs Swarm)
@@ -173,6 +173,8 @@ uvicorn app.main:app --port 8002 --reload
 
 ### 6. Run the end-to-end example script (no server required)
 
+One-shot script: pass a question and optional `--mode`; it uses the agent(s) to fetch data and produce an answer. No server needed.
+
 From project root, venv activated, `.env` configured:
 
 **Windows:**
@@ -217,9 +219,11 @@ curl -X POST http://localhost:8002/chat/ \
   -d '{"message":"What is 2+2?","mode":"swarm","include_trace":true}'
 ```
 
-### 8. Run tests (example outcomes)
+### 8. Run the small benchmark (fixed Q&A tests)
 
-With the server running, run the test script from the project root (venv activated):
+A **small benchmark** runs a set of **fixed example questions** against the live API to verify behavior: each question is sent to `POST /chat/` in the appropriate mode (General, RAG, or Swarm), and the script checks for **HTTP 200** and **non-empty output**. This acts as a regression/acceptance test for the three pipelines and optional file upload.
+
+**Requires the server to be running** (step 5). From project root, venv activated:
 
 **Windows:**
 
@@ -235,7 +239,9 @@ source .venv/bin/activate
 python test_chat_file.py
 ```
 
-The script sends the example questions from “Example questions and sample outputs” to the API (General, RAG, Swarm) and checks for HTTP 200 and non-empty output. Optional: `--quick` runs a smaller subset with a shorter timeout; `--file <path>` sets the file for the swarm file-upload test (default: `test_upload.txt` if present).
+**What the benchmark covers:** General (search, e.g. weather/T20; URL, e.g. summarize python.org, GitHub API), RAG (Pyxon services/offices — needs Qdrant + ingest), Swarm (exchange rate, httpbin fetch, LangChain Wikipedia, first 5 primes, 2+2). Optional file-upload test when `--file <path>` is passed (default: `test_upload.txt` if present).
+
+**Options:** `--quick` runs a smaller subset with a shorter timeout (30s). `--file <path>` sets the file for the swarm file-upload test.
 
 ---
 
@@ -558,12 +564,13 @@ Below are example questions and representative answers produced by the chatbot. 
 | Working code: search agent + LLM | ✅ | `app/agents/chat_agent.py`, `app/tools/search.py` |
 | Working code: URL/API agent + LLM | ✅ | `app/agents/chat_agent.py`, `app/tools/url_fetch.py` |
 | Working code: agent swarm | ✅ | `app/swarm/graph.py`, `app/swarm/state.py` |
-| Full end-to-end example | ✅ | `examples/run_e2e_example.py` |
+| Full end-to-end example | ✅ | `examples/run_e2e_example.py` (step 6 in How to Run) |
+| Small benchmark (fixed Q&A) | ✅ | `test_chat_file.py` — fixed questions for General, RAG, Swarm + optional file; verifies 200 and non-empty output (step 8) |
 | README: how to run | ✅ | This document, “How to Run” (Windows/macOS/Linux) |
 | README: architecture | ✅ | “Architecture and Data Flow”, “RAG: … Full Detail” |
 | README: example questions | ✅ | “Testing Guide” |
 | Optional: RAG | ✅ | Company RAG (CrewAI, robots.txt, Qdrant); General persist/retrieve |
-| Optional: tests/benchmark | ✅ Script | `test_chat_file.py` (General, RAG, Swarm, file upload) |
+| Optional: tests/benchmark | ✅ | Small benchmark above; see step 8 in How to Run |
 | Optional: Docker/K8s | ⚠️ Outline | See “Optional: Deployment” |
 
 ---
