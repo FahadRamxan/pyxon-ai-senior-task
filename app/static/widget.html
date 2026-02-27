@@ -586,41 +586,44 @@
       transform: rotate(90deg);
     }
     .pyxon-widget__end-chat svg { width: 20px; height: 20px; }
+    .pyxon-widget__attach-btn {
+      width: 44px; height: 44px; border-radius: 14px; border: none;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; cursor: pointer;
+      background: var(--px-bg-header);
+      color: var(--px-text-muted);
+      border: 1px solid var(--px-border);
+      transition: color 0.2s, background 0.2s, border-color 0.2s;
+    }
+    .pyxon-widget__attach-btn:hover { color: var(--px-text); border-color: var(--px-text-muted); }
+    .pyxon-widget__attach-btn svg { width: 20px; height: 20px; }
     .pyxon-widget__file-row {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-top: 8px;
-      min-height: 28px;
+      gap: 6px;
+      margin-top: 6px;
+      min-height: 0;
+      padding-left: 2px;
     }
+    .pyxon-widget__file-row.is-empty { display: none; }
     .pyxon-widget__file-input { display: none; }
-    .pyxon-widget__file-btn {
-      padding: 6px 12px;
-      border-radius: 10px;
-      border: 1px solid var(--px-border);
-      background: var(--px-bg-header);
-      color: var(--px-text-muted);
-      font-size: 0.75rem;
-      cursor: pointer;
-      transition: color 0.2s, border-color 0.2s;
-    }
-    .pyxon-widget__file-btn:hover { color: var(--px-text); border-color: var(--px-text-muted); }
     .pyxon-widget__file-name {
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       color: var(--px-text-muted);
-      max-width: 180px;
+      max-width: 200px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
     .pyxon-widget__file-clear {
-      padding: 2px 8px;
+      padding: 2px 6px;
       border: none;
       background: transparent;
       color: var(--px-text-muted);
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       cursor: pointer;
       border-radius: 6px;
+      flex-shrink: 0;
     }
     .pyxon-widget__file-clear:hover { color: #ef4444; background: rgba(239,68,68,0.1); }
   </style>
@@ -710,6 +713,10 @@
         </div>
         <div class="pyxon-widget__input-wrap">
           <div class="pyxon-widget__row">
+            <input type="file" class="pyxon-widget__file-input" id="fileInput" accept=".pdf,.txt,.csv,.json,.md" aria-label="Attach file">
+            <button type="button" class="pyxon-widget__attach-btn" id="fileBtn" title="Attach file" aria-label="Attach file">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            </button>
             <textarea class="pyxon-widget__input" id="input" rows="1" placeholder="Type a message..." aria-label="Message" data-i18n-placeholder="inputPlaceholder"></textarea>
             <button type="button" class="pyxon-widget__send" id="send" aria-label="Send">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
@@ -718,11 +725,9 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
-          <div class="pyxon-widget__file-row">
-            <input type="file" class="pyxon-widget__file-input" id="fileInput" accept=".pdf,.txt,.csv,.json,.md" aria-label="Attach file">
-            <button type="button" class="pyxon-widget__file-btn" id="fileBtn" data-i18n-attach="attachFile">Attach file</button>
+          <div class="pyxon-widget__file-row is-empty" id="fileRow">
             <span class="pyxon-widget__file-name" id="fileName"></span>
-            <button type="button" class="pyxon-widget__file-clear" id="fileClear" style="display:none">Remove</button>
+            <button type="button" class="pyxon-widget__file-clear" id="fileClear">Remove</button>
           </div>
         </div>
       </div>
@@ -851,7 +856,7 @@
           greetingEl.innerHTML = renderMarkdown(greetingMsg);
         }
         if (inputEl) inputEl.placeholder = t.inputPlaceholder;
-        if (fileBtn) fileBtn.textContent = t.attachFile || 'Attach file';
+        if (fileBtn) { fileBtn.title = t.attachFile || 'Attach file'; fileBtn.setAttribute('aria-label', t.attachFile || 'Attach file'); }
         if (fileClear) fileClear.textContent = t.removeFile || 'Remove';
         document.getElementById('langEn').classList.toggle('active', lang === 'en');
         document.getElementById('langAr').classList.toggle('active', lang === 'ar');
@@ -1078,17 +1083,18 @@
         } else if (!show && el) el.remove();
       }
 
+      var fileRow = document.getElementById('fileRow');
       function clearFile() {
         if (fileInput) fileInput.value = '';
         if (fileName) fileName.textContent = '';
-        if (fileClear) fileClear.style.display = 'none';
+        if (fileRow) fileRow.classList.add('is-empty');
       }
       if (fileBtn && fileInput) fileBtn.addEventListener('click', function() { fileInput.click(); });
-      if (fileInput && fileName && fileClear) {
+      if (fileInput && fileName && fileRow) {
         fileInput.addEventListener('change', function() {
           if (fileInput.files && fileInput.files.length > 0) {
             fileName.textContent = fileInput.files[0].name;
-            fileClear.style.display = '';
+            if (fileRow) fileRow.classList.remove('is-empty');
           } else clearFile();
         });
       }

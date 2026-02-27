@@ -1,307 +1,435 @@
-# Pyxon AI - Senior AI Engineer Entry Task
+# Pyxon AI – Senior AI Engineer Entry Task
 
 ## Overview
 
-We are looking for a highly motivated **Senior AI Engineer** to join our team. In this role, you will act as a critical bridge between our core AI platform and our enterprise clients. You will lead the end-to-end deployment of cutting-edge **Agentic AI** and **Generative AI** solutions in complex, secure environments, working directly with customers to solve real-world problems in sectors like finance, healthcare, and telecommunications.
-
-This entry task focuses on **agentic systems**: building agents that use external data sources (e.g., web search, URLs/APIs), reason over that data, and answer user questions—aligned with RAG, agent swarms, and production-grade deployment.
+This repository implements an **agentic chatbot** that meets all three task requirements plus optional and extra features: an agent with **search** and **URL/API** tools, an **agent swarm** (multi-agent system) with LangGraph, **RAG** over company content (including Pyxon website scraping with CrewAI and ethical robots.txt compliance) and over search/URL results, **file upload and analysis**, and a **coding agent**. The app exposes a FastAPI backend, a full-page chat UI, and an embeddable widget.
 
 ---
 
-## Quick Start (How to Run)
+## Features Implemented
 
-1. **Create a virtual environment and activate it**
-   ```bash
-   python -m venv .venv
-   .venv\Scripts\activate   # Windows
-   # source .venv/bin/activate  # macOS/Linux
-   ```
+### Required (deliverables)
 
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+| Deliverable | Status | Description |
+|-------------|--------|-------------|
+| **1. Agent with search/data source + LLM** | ✅ | **General** mode: ReAct-style agent with SerpAPI (or Google CSE) search. Queries search, consumes results, LLM synthesizes answer. `app/agents/chat_agent.py`, `app/tools/search.py`. |
+| **2. Agent that requests URLs/APIs + LLM** | ✅ | **General** mode: `RequestsGetTool` and `RequestsPostTool`. Fetches URLs/APIs, interprets content, LLM answers. `app/agents/chat_agent.py`, `app/tools/url_fetch.py`. |
+| **3. Agent swarm (multi-agent)** | ✅ | **Swarm** mode: LangGraph supervisor → researcher (search), fetcher (URL), analyst (file), coder (Python), synthesizer. `app/swarm/graph.py`, `app/swarm/state.py`. |
+| **4. Full end-to-end example** | ✅ | Script: `examples/run_e2e_example.py`. Question → fetch (search/URL or swarm) → optional RAG persist/retrieve → LLM answer (and swarm trace). |
+| **5. README (run, architecture, examples)** | ✅ | This document: exact run commands (Windows/macOS/Linux), architecture, RAG detail, testing guide, deliverables checklist. |
 
-3. **Configure environment**
-   - Copy or create a `.env` file in the project root (see example below). **Do not commit `.env`**; it is in `.gitignore`.
-   - Required for the chatbot: `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_CSE_ID`.
+### Optional and extra
 
-4. **Run the FastAPI app**
-   ```bash
-   uvicorn app.main:app --port 8002 --reload
-   ```
-   - API: <http://localhost:8002>
-   - Full-page chat: <http://localhost:8002/>
-   - **Embeddable widget:** <http://localhost:8002/widget> (floating bubble + panel; use in iframe or add `<script src="http://localhost:8002/embed.js" data-base="http://localhost:8002"></script>` to any page)
-   - Docs: <http://localhost:8002/docs>
-   - Chat API: `POST /chat/` with body `{"message": "Your question here"}`
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **RAG over search/URL results** | ✅ | General mode: search and URL tool outputs persisted to Qdrant (`pyxon_search_results`); retrieved before each reply for grounding. `app/rag/search_store.py`. |
+| **RAG over company content (Pyxon)** | ✅ | Intent-based RAG: Pyxon website scraping (CrewAI) with **ethical scraping** (robots.txt); Qdrant; chunking and embeddings as below. Also PDFs in `Pyxon Data RAG/` ingested the same way. `app/rag/`. |
+| **File upload and analysis** | ✅ | Swarm: user can attach a file (paperclip in widget or multipart API); **analyst** agent summarizes/answers questions about the file; synthesizer uses analysis in the answer. |
+| **Coding agent** | ✅ | Swarm: **coder** agent generates and runs Python (safe subprocess, timeout, output limit); results fed to synthesizer. `app/tools/code.py`, `app/swarm/graph.py`. |
+| **Embeddable widget** | ✅ | Floating chat bubble + panel at `/widget`; iframe or `embed.js`. Multilingual (EN/AR), theme toggle, mode toggle (General/RAG/Swarm), file attach. |
+| **Tests / benchmark** | ⚠️ Partial | `test_chat_file.py` tests swarm + file upload via API. No full pytest suite or fixed Q&A benchmark. |
+| **Docker / K8s outline** | ⚠️ Outline | Deployment outline in “Optional: Deployment” section below; no Dockerfile or Helm in repo. |
 
-**Example `.env` (do not commit):**
+---
+
+## How to Run
+
+Commands below are for **Windows (PowerShell/CMD)**, **Windows (Git Bash)**, and **macOS/Linux**. Use the block that matches your environment.
+
+### Requirements
+
+- **Python:** 3.10+ (3.11 or 3.12 recommended)
+- **Env vars:** `OPENAI_API_KEY` (required). For search: `SERPAPI_API_KEY` **or** `GOOGLE_API_KEY` + `GOOGLE_CSE_ID`. For RAG/General persist: `QDRANT_URL` (default `http://localhost:6333`), optional `QDRANT_API_KEY`.
+
+### 1. Virtual environment and dependencies
+
+**Windows (PowerShell or CMD):**
+
+```powershell
+cd C:\path\to\pyxon-ai-senior-task
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+**Windows (Git Bash):**
+
+```bash
+cd /c/path/to/pyxon-ai-senior-task
+python -m venv .venv
+source .venv/Scripts/activate
+pip install -r requirements.txt
+```
+
+**macOS / Linux:**
+
+```bash
+cd /path/to/pyxon-ai-senior-task
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 2. Environment variables (.env)
+
+Create a `.env` file in the project root (do not commit it). Example:
+
 ```env
-OPENAI_API_KEY=your-openai-key
-GOOGLE_API_KEY=your-google-api-key
-GOOGLE_CSE_ID=your-cse-id
-# Optional: RAG (Qdrant). Defaults to http://localhost:6333 if not set.
+OPENAI_API_KEY=sk-your-openai-key
+SERPAPI_API_KEY=your-serpapi-key
+# OR for Google Custom Search:
+# GOOGLE_API_KEY=your-google-api-key
+# GOOGLE_CSE_ID=your-cse-id
+# Optional for RAG and General-mode persist/retrieve:
 QDRANT_URL=http://localhost:6333
 QDRANT_API_KEY=
 ```
 
-### RAG mode (Qdrant)
+**Windows (PowerShell)** — optional template copy:
 
-The chat supports **mode=rag**: an orchestration pipeline over the PDFs in `Pyxon Data RAG/`. An intent classifier routes the query to one or more sub-agents (General, Cloud & Automation, Smart IoT, AI Solutions, Cybersecurity); each sub-agent uses its own Qdrant collection and GPT-4o-mini. Multi-intent queries run sub-agents in parallel, then a synthesizer merges the answers.
+```powershell
+Copy-Item .env.example .env
+# Then edit .env (e.g. notepad .env)
+```
 
-1. **Run Qdrant** (e.g. Docker): `docker run -p 6333:6333 qdrant/qdrant`
-2. **Ingest PDFs** into Qdrant (once):  
-   `python -m app.rag.ingest_cli` or `python -m app.rag.ingest_cli all`  
-   Or ingest one agent: `python -m app.rag.ingest_cli general`
-3. In the widget, select **RAG** and ask questions; or call `POST /chat/` with `{"message": "...", "mode": "rag"}`.
+**macOS / Linux:**
 
-### General mode: search/URL + persist & retrieve (RAG over search results)
+```bash
+cp .env.example .env
+# Edit: nano .env  (or vim, code, etc.)
+```
 
-In **mode=general**, the agent uses SerpAPI search and URL (GET/POST) tools. Search and URL results are **persisted** into a Qdrant collection (`pyxon_search_results`) and **retrieved** before each reply for better grounding and reuse:
+### 3. Qdrant (for RAG and General-mode persist/retrieve)
 
-1. **Retrieve:** The user message is embedded and used to query the `pyxon_search_results` collection; any matching past search/URL content is added as context to the prompt.
-2. **Run agent:** The agent runs with that context and may call search/URL tools again.
-3. **Persist:** All tool outputs (search snippets, fetched page/API text) are chunked, embedded, and upserted into `pyxon_search_results` for future turns.
+**All platforms (Docker):**
 
-So the first time you ask e.g. "Class B license rules in Germany", the agent searches and the results are stored; a follow-up like "What's the minimum age?" can be answered using the retrieved context. Requires Qdrant (same as RAG mode).
+```bash
+docker run -p 6333:6333 qdrant/qdrant
+```
+
+Leave this running in a separate terminal. API: `http://localhost:6333`.
+
+### 4. Ingest RAG data (PDFs into Qdrant)
+
+PDFs must be in the `Pyxon Data RAG/` folder (see `app/rag/config.py` for expected filenames).
+
+**Windows:**
+
+```powershell
+.\.venv\Scripts\activate
+python -m app.rag.ingest_cli all
+```
+
+**macOS / Linux:**
+
+```bash
+source .venv/bin/activate
+python -m app.rag.ingest_cli all
+```
+
+Single-agent ingest (optional):
+
+```bash
+python -m app.rag.ingest_cli general
+python -m app.rag.ingest_cli cybersecurity
+```
+
+Valid agent keys: `general`, `cloud_automation`, `smart_iot`, `ai_solutions`, `cybersecurity`.
+
+### 5. Start the FastAPI app
+
+**Windows:**
+
+```powershell
+.\.venv\Scripts\activate
+uvicorn app.main:app --port 8002 --reload
+```
+
+**macOS / Linux:**
+
+```bash
+source .venv/bin/activate
+uvicorn app.main:app --port 8002 --reload
+```
+
+- **API:** http://localhost:8002  
+- **Full-page chat:** http://localhost:8002/  
+- **Widget:** http://localhost:8002/widget  
+- **API docs:** http://localhost:8002/docs  
+- **Chat API:** `POST /chat/` with JSON `{"message": "...", "mode": "general"|"rag"|"swarm", "include_trace": true|false}` or multipart with optional `file`.
+
+### 6. Run the end-to-end example script (no server required)
+
+From project root, venv activated, `.env` configured:
+
+**Windows:**
+
+```powershell
+.\.venv\Scripts\activate
+python examples/run_e2e_example.py "What is the capital of Japan?"
+python examples/run_e2e_example.py "Summarize the content at https://example.com" --mode general
+python examples/run_e2e_example.py "What is 15% of 240?" --mode swarm
+```
+
+**macOS / Linux:**
+
+```bash
+source .venv/bin/activate
+python examples/run_e2e_example.py "What is the capital of Japan?"
+python examples/run_e2e_example.py "Summarize the content at https://example.com" --mode general
+python examples/run_e2e_example.py "What is 15% of 240?" --mode swarm
+```
+
+### 7. Test the API (server must be running)
+
+**Windows (PowerShell):**
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8002/chat/" -Method POST -ContentType "application/json" -Body '{"message":"What is the capital of France?","mode":"general"}'
+```
+
+**macOS / Linux (curl):**
+
+```bash
+curl -X POST http://localhost:8002/chat/ \
+  -H "Content-Type: application/json" \
+  -d '{"message":"What is the capital of France?","mode":"general"}'
+```
+
+**Swarm with trace:**
+
+```bash
+curl -X POST http://localhost:8002/chat/ \
+  -H "Content-Type: application/json" \
+  -d '{"message":"What is 2+2?","mode":"swarm","include_trace":true}'
+```
+
+---
+
+## Architecture and Data Flow
+
+### General mode (search + URL + optional RAG)
+
+1. **Retrieve (optional):** User message is embedded and used to query the Qdrant collection `pyxon_search_results`; matching past search/URL content is added as context.
+2. **Agent:** ReAct agent with tools: search (SerpAPI or Google CSE), URL GET, URL POST. Agent may call tools and use context to answer.
+3. **Persist (optional):** Tool outputs (search snippets, fetched pages) are chunked, embedded, and upserted into `pyxon_search_results` for future turns.
+
+**Code:** `app/agents/chat_agent.py`, `app/tools/search.py`, `app/tools/url_fetch.py`, `app/rag/search_store.py`, `app/api/routes/chat.py`.
 
 ### Swarm mode (multi-agent)
 
-**mode=swarm** runs a LangGraph multi-agent swarm: a **supervisor** routes to **researcher** (search), **fetcher** (URL GET), and **synthesizer** (writer). Data from search and URLs flows into shared state and the synthesizer produces the final answer.
+- **Supervisor** (LLM) decides the next step: `researcher`, `fetcher`, `analyst`, `coder`, `synthesizer`, or `finish`.
+- **Researcher:** Runs search tool, appends result to shared state.
+- **Fetcher:** Fetches one URL from state, appends result.
+- **Analyst:** Analyzes uploaded file(s), appends analysis to state (runs when user attached a file).
+- **Coder:** Generates Python, runs it via `run_python`, appends output to state.
+- **Synthesizer:** Reads all evidence (search, URL, analysis, code) and produces the final answer.
+- After each specialist, control returns to the supervisor until `finish`. Router overrides prevent redundant analyst/synthesizer runs.
 
-- **Widget:** Choose **Swarm** at start or in the chat mode toggle. Each reply shows a **Flow** line at the bottom (e.g. `supervisor → researcher → supervisor → synthesizer → supervisor → finish`).
-- **API:** `POST /chat/` with `{"message": "...", "mode": "swarm", "include_trace": true}`. The response includes `output` and optionally `trace` (list of steps: node, decision, result_preview, etc.).
-- **Server console:** When the app runs with `uvicorn`, each swarm step is logged (e.g. `INFO ... swarm step 1: supervisor`, `swarm supervisor decision: researcher`). Watch the terminal to see the flow live.
+**Code:** `app/swarm/graph.py`, `app/swarm/state.py`, `app/tools/code.py`, `app/utils/file_extract.py`.
 
----
+### RAG mode (company knowledge)
 
-## Role Context
+1. **Intent classifier** (GPT-4o-mini): Maps query to one or more intents (`general`, `cloud_automation`, `smart_iot`, `ai_solutions`, `cybersecurity`).
+2. **Sub-agents:** For each intent, retrieve top-k chunks from that intent’s Qdrant collection, then generate an answer with GPT-4o-mini using only that context.
+3. **Synthesizer:** If multiple intents, sub-agent answers are merged into one response.
 
-### Key Responsibilities (from the role)
-
-- **Lead End-to-End Deployments:** Architect and lead the deployment of an AI workspace platform in private cloud, hybrid, and on-premises environments.
-- **Develop Agentic & Generative AI Solutions:** Design and build features for an AI workspace, including autonomous agents that interact with sensitive enterprise data and generate multi-modal outputs.
-- **Model Customization & Fine-Tuning:** Customize base models via fine-tuning (e.g., LoRA, QLoRA) and, where applicable, TTS models for custom voices or domain-specific acoustics.
-- **Partner with Enterprise Clients:** Work with client IT/engineering teams on infrastructure, security, and data management as a trusted technical advisor.
-- **Ensure Security and Compliance:** Design deployment strategies that meet data privacy, security standards, and regulatory compliance.
-- **Full Lifecycle Ownership:** From conceptualizing features from customer feedback to troubleshooting and resolving issues in production.
-- **Experiment and Innovate:** Operate at high velocity and experiment with new approaches to engage customers and exceed expectations.
-
-### Relevant Required Skills
-
-- **Agentic AI & RAG:** Building and deploying highly performant RAG applications and AI agents using modern frameworks and techniques.
-- **Deployment & Orchestration:** Production Kubernetes, Helm, DevOps, CI/CD.
-- **Infrastructure:** Strong expertise in at least one major cloud (AWS, Azure, GCP); networking, security, virtualization.
-- **Application Development:** Production-grade code, with a strong preference for **Python**; ability to read, understand, and fix issues across the stack.
-- **Fine-Tuning:** Experience with LLM fine-tuning (e.g., LoRA, QLoRA) and optionally TTS fine-tuning.
-- **Customer-Facing:** Experience working directly with customers, gathering requirements, and guiding complex technical implementations.
-- **Technical Knowledge:** Transformers, prompt engineering, security best practices for AI, infrastructure-as-code (e.g., Terraform, Pulumi).
-
-**Nice-to-have:** Multi-modal AI (speech/audio), traditional ML/DL, model quantization/edge deployment, other AI frameworks (LangChain, LlamaIndex), embedding models.
+**Code:** `app/rag/orchestrator.py`, `app/rag/intent.py`, `app/rag/agents.py`, `app/rag/qdrant_client.py`.
 
 ---
 
-## Task Requirements
+## RAG: Pyxon Website Scraping (CrewAI), Ethical Scraping, and Qdrant — Full Detail
 
-Your task is to demonstrate **agentic AI** skills by building one or more agents that use **external data sources** and an **LLM** to answer user questions. You may use **LangChain** (and related packages such as **LangGraph**) or another framework of your choice.
+We built RAG on **Pyxon website scraping results** using **CrewAI** to orchestrate the scraping workflow. **Ethical scraping** was enforced by checking **robots.txt** at the base URL (e.g. `https://pyxon.com/robots.txt`) before crawling: we respect `Disallow` and `Crawl-delay` (where applicable) and only scrape paths that are not prohibited. The vector store is **Qdrant**. The same RAG pipeline (chunking, embedding, retrieval, generation) is used for website-derived content and for the PDFs in this repo.
 
-### 1. Agent with Search / Data Source (e.g., Google)
+### Data source and ethical scraping
 
-Build an **agent that has access to a data source such as Google Search** and uses an LLM to answer questions based on that data.
+- **Source:** Pyxon website content, obtained via **CrewAI**-orchestrated scraping (tasks/agents for discovering URLs, fetching pages, extracting text).
+- **Ethical scraping:** Before scraping we:
+  - Fetch and parse **robots.txt** at the base URL (e.g. `https://<domain>/robots.txt`).
+  - Respect `Disallow` and do not request disallowed paths.
+  - Optionally respect `Crawl-delay` and rate limits.
+- **Result:** Only allowed pages are scraped; extracted text is then chunked and indexed into Qdrant.
 
-- The agent should be able to **query the data source** (e.g., run search queries).
-- The agent should **consume the returned content** (snippets, links, or full pages) and use the **LLM** to synthesize an answer.
-- Optionally, combine with **RAG**: persist search results (or fetched pages) into a vector store and use retrieval before generation for better grounding and citations.
+### Vector store: Qdrant
 
-**Does LangChain support this?** Yes. LangChain provides:
+- All RAG collections use **Qdrant**.
+- **Collections:** One per sub-agent (e.g. `pyxon_general`, `pyxon_cybersecurity`) for company RAG; `pyxon_search_results` for General-mode search/URL persist and retrieve.
+- **Config:** `QDRANT_URL` (default `http://localhost:6333`), optional `QDRANT_API_KEY`. See `app/rag/config.py`, `app/rag/qdrant_client.py`.
 
-- **Google Search:** e.g. `GoogleSearchAPIWrapper` (requires `GOOGLE_API_KEY` and `GOOGLE_CSE_ID`). You can expose it as a tool and use it with an agent.
-- **Agent + tools:** Use `load_tools(["google-search"], llm=llm)` and an agent (e.g. ReAct) so the LLM decides when to search and how to use results to answer.
+### Chunking strategy
 
-You are free to use another search provider (e.g., SerpAPI, Bing, Tavily) if you prefer.
+- **Goal:** Semantic chunks that respect headings and paragraphs.
+- **Algorithm** (`app/rag/ingestion.py`):
+  1. Normalize text (collapse newlines, strip).
+  2. Split on heading boundaries (regex: short lines, colon endings, numbered headings).
+  3. For each part: if length ≤ `CHUNK_SIZE + CHUNK_OVERLAP`, keep as one chunk; else split by paragraphs (`\n\n`), merge into chunks of size ≤ `CHUNK_SIZE` with overlap (last paragraph can start the next chunk, up to `CHUNK_OVERLAP`).
+  4. **Fallback:** If one very long chunk remains, use LangChain **RecursiveCharacterTextSplitter** with `chunk_size=CHUNK_SIZE`, `chunk_overlap=CHUNK_OVERLAP`, separators `["\n\n", "\n", ". ", " ", ""]`.
+- **Parameters** (`app/rag/config.py`): **CHUNK_SIZE** 600, **CHUNK_OVERLAP** 80. Chunks &lt; 30 characters are dropped. Metadata (e.g. `source`) is stored with each chunk.
 
-### 2. Agent That Requests URLs and Processes Them (e.g., APIs / Web Pages)
+### Embedding model
 
-Build an **agent that can make HTTP requests to URLs**, process the response (e.g., HTML or JSON from an API), **understand what is there**, and use that information to **answer user questions**.
+- **Model:** **OpenAI `text-embedding-3-large`** (LangChain `OpenAIEmbeddings`).
+- **Dimension:** 3072. Same model for indexing and query. See `app/rag/embeddings.py`.
 
-- The agent should be able to **call URLs** (GET and, if useful, POST) and get response content.
-- The agent should **interpret** the content (e.g., parse JSON, extract text from HTML) and feed it to the LLM.
-- The LLM should use this content to **answer questions** or perform tasks (e.g., “What does this API return?” or “Summarize the content at this URL”).
+### LLMs used in RAG
 
-**Does LangChain support this?** Yes. LangChain provides:
+- **Intent classifier:** **GPT-4o-mini** — classifies query into one or more intents. `app/rag/intent.py`.
+- **Sub-agents:** **GPT-4o-mini** — each retrieves **RAG_TOP_K** (default 6) chunks from its collection and generates an answer. `app/rag/agents.py`.
+- **Synthesizer (multi-intent):** **GPT-4o-mini** — merges sub-agent answers. `app/rag/orchestrator.py`.
 
-- **Requests tools:** e.g. `RequestsGetTool` (GET a URL and return response text). Load via `load_tools(["requests_all"], allow_dangerous_requests=True)` (opt-in for security). Similar tools exist for POST, PATCH, PUT, DELETE.
-- You can also build **custom tools** that call `requests` or `httpx`, parse JSON/HTML, and return a string for the LLM.
+### End-to-end RAG flow
 
-Use these (or custom tools) inside an agent so the LLM decides which URLs to call and how to use the responses.
+1. **Ingest:** Scraped website content or PDFs in `Pyxon Data RAG/` → chunk → embed with `text-embedding-3-large` → upsert into Qdrant.
+2. **Query:** User question → intent classifier → one or more intent keys.
+3. **Retrieve:** For each intent, embed query, query Qdrant for top-k chunks.
+4. **Generate:** Sub-agents generate answers; synthesizer merges if multiple intents.
+5. **Response:** Single answer (and optionally citations from chunk metadata).
 
-### 3. Agent Swarm (Multi-Agent System) with LangChain / LangGraph
+### Implementation locations
 
-Create an **agent swarm** (multi-agent system) using **LangChain** (and optionally **LangGraph**).
-
-- **Multiple agents** with distinct roles (e.g., one for search, one for URL fetching, one for synthesis or coding).
-- **Coordination:** agents can hand off tasks, use each other as tools, or be orchestrated by a router/supervisor.
-- **Data flow:** ensure that data from external sources (search, URLs/APIs) is used by the swarm to answer user questions.
-
-**Does LangChain/LangGraph support this?** Yes. LangGraph provides:
-
-- **Multi-agent patterns:** subagents, handoffs, router, or custom workflows.
-- **Swarm-style coordination:** e.g. `langgraph-swarm` with `create_swarm()` for multiple agents (graphs) working together.
-- **Examples:** multi-agent collaboration, multi-agent networks (e.g., inspired by AutoGen-style designs).
-
-Your swarm should demonstrate at least one of: search-backed answers, URL/API-backed answers, or a clear division of labor (e.g., researcher + writer + critic).
-
----
-
-## Deliverables
-
-Provide the following in your submission:
-
-1. **Working code** for:
-   - An agent that uses a search/data source (e.g., Google) + LLM to answer questions, and/or  
-   - An agent that requests URLs (and optionally APIs), processes the content, and uses the LLM to answer, and/or  
-   - An agent swarm (multi-agent system) that uses external data (search and/or URLs) and an LLM to answer questions.
-
-2. **One full end-to-end example** (script or notebook) that:
-   - Takes a **user question** (e.g., “What is the current weather in Amman?” or “Summarize the content at https://example.com” or “What does the API at https://api.example.com/status return?”).
-   - Uses your agent(s) to **fetch data** (search and/or URL/API).
-   - **Processes** the data (parse, optionally store in a vector store for RAG).
-   - Uses the **LLM** to produce a clear **answer** (and optionally citations/sources).
-
-3. **README** (or section in a README) that explains:
-   - How to run the code (dependencies, env vars, e.g. `GOOGLE_API_KEY`, `GOOGLE_CSE_ID`, LLM API keys).
-   - Architecture: which agents/tools you used, how data flows from search/URLs to the LLM.
-   - One or two example questions and the expected behavior (or sample outputs).
-
-4. **Optional but valued:**
-   - Simple **RAG** integration (e.g., index search results or URL content in a vector store, then retrieve before generating).
-   - **Tests** or a small **benchmark** (e.g., a few fixed Q&A pairs) to verify behavior.
-   - **Docker** or **Kubernetes/Helm** outline for running the agent in a container or cluster (aligned with the role’s deployment focus).
+- Chunking/ingestion: `app/rag/ingestion.py`
+- Embeddings: `app/rag/embeddings.py`
+- Config: `app/rag/config.py`
+- Qdrant client: `app/rag/qdrant_client.py`
+- Intent: `app/rag/intent.py`
+- Sub-agents: `app/rag/agents.py`
+- Orchestrator: `app/rag/orchestrator.py`
+- Ingest CLI: `python -m app.rag.ingest_cli all`
 
 ---
 
-## Full Example Outline (Reference)
+## Testing Guide: Example Prompts and API
 
-Below is a **minimal structure** for a single agent that uses **Google Search** and **URL fetching** to answer questions. You can extend this into a swarm or add RAG.
+Use the **widget** (http://localhost:8002/widget) or **API** (`POST /chat/` with `message`, `mode`) to try the following.
 
-```python
-# Example structure (pseudocode – adapt to your preferred LangChain/LangGraph APIs)
+### 1. Agent with search (General)
 
-# 1. Tools
-# - Google Search: GoogleSearchAPIWrapper or load_tools(["google-search"], llm=llm)
-# - URL fetch: RequestsGetTool or load_tools(["requests_all"], allow_dangerous_requests=True)
-# - Optional: custom tool that GETs a URL, parses JSON/HTML, returns a string
+| What to test | Example prompt |
+|--------------|----------------|
+| Search and answer | `What is the capital of Japan?` |
+| Synthesize from snippets | `What are the main benefits of renewable energy?` |
+| RAG over search (two turns; needs Qdrant) | 1) `What are the rules for a Class B driving license in Germany?` → 2) `What is the minimum age for that?` |
 
-# 2. Agent
-# - Create an agent (e.g. create_react_agent or AgentExecutor) with tools = [search_tool, requests_tool]
-# - System message: "You can search the web and fetch URLs. Use the results to answer the user's question."
-
-# 3. Run
-# - user_question = "What is the latest news about X?" or "What does https://api.example.com/info return?"
-# - result = agent.invoke({"input": user_question})
-# - Print result["output"] and, if available, citations/sources
+```bash
+curl -X POST http://localhost:8002/chat/ -H "Content-Type: application/json" -d "{\"message\": \"What is the population of Berlin?\", \"mode\": \"general\"}"
 ```
 
-**LangChain/LangGraph references (as of 2024):**
+### 2. Agent that requests URLs (General)
 
-- **Google Search:** [LangChain Google Search integration](https://python.langchain.com/docs/integrations/tools/google_search/)  
-- **Requests (URL fetch):** [LangChain Requests tools](https://python.langchain.com/docs/integrations/tools/requests/) (use `allow_dangerous_requests=True` where required)  
-- **Multi-agent / swarm:** [LangGraph multi-agent](https://langchain-ai.github.io/langgraph/agents/multi-agent/), [LangGraph Swarm](https://reference.langchain.com/python/langgraph/swarm/)  
-- **RAG:** LangChain retrieval chains and vector stores (e.g., from document loaders or from fetched URL content)
+| What to test | Example prompt |
+|--------------|----------------|
+| Summarize URL | `Summarize the content at https://www.python.org/about/` |
+| Explain API response | `What does https://api.github.com/ return? Describe the main keys.` |
+| Search then fetch | `Find the official Python 3.12 release notes page and tell me the release date.` |
 
-You may implement in **Python** with **LangChain/LangGraph** or another framework (e.g., LlamaIndex, custom orchestration); the above is a suggested path that matches the “LangChain agent with Google + URL requests” idea.
-
----
-
-## Technical Specifications
-
-### Technology Stack
-
-- **Language:** Python preferred (per role).
-- **Frameworks:** LangChain, LangGraph, LlamaIndex, or equivalent agent/RAG frameworks.
-- **LLM:** Any compatible model (OpenAI, Anthropic, local models, etc.); specify in README.
-- **Search:** Google Search API (or SerpAPI, Tavily, Bing, etc.).
-- **URL/HTTP:** `requests` or `httpx`; LangChain’s Requests tools or custom tools.
-- **Optional:** Vector store (Chroma, FAISS, etc.) for RAG; Docker/K8s for deployment.
-
-### Security and Safety
-
-- Do **not** hardcode API keys; use environment variables or a secrets manager.
-- If using `requests_all` or similar, be aware of the security implications (arbitrary URL fetch); use `allow_dangerous_requests` only where necessary and document it.
-- For deployment, consider network policies, private endpoints, and least-privilege access (aligned with the role’s security and compliance focus).
-
----
-
-## Submission Guidelines
-
-### Process
-
-1. **Fork this repository** to your GitHub account.
-2. **Implement** the required agent(s) and the full example as described above.
-3. **Add a README** :
-   - How to run the code (install, env vars, commands).
-   - Architecture and data flow (search → agent, URL → agent, or swarm).
-   - Example questions and expected behavior (or sample outputs).
-4. **Create a Pull Request** with:
-   - **Contact information** (email or phone).
-   - **Summary** of what was implemented (which of the three tasks: search agent, URL agent, swarm).
-   - **How to run** and any **assumptions** (e.g., which search provider, which LLM).
-   - **Optional:** Demo link (e.g., Streamlit/Gradio app), benchmark results, or deployment notes.
-
-### PR Description Template
-
-```markdown
-## Summary
-Brief overview: e.g., "Agent using Google Search + URL fetch + LLM; optional swarm with LangGraph."
-
-## Contact Information
-📧 Email: [your-email@example.com] or 📱 Phone: [your-phone-number]
-
-## Features Implemented
-- [ ] Agent with search data source (e.g., Google) + LLM answers
-- [ ] Agent that requests URLs/APIs and uses content to answer
-- [ ] Agent swarm (multi-agent) with LangChain/LangGraph
-- [ ] Full end-to-end example (question → data → answer)
-- [ ] README with run instructions and architecture
-- [ ] (Optional) RAG, tests, or Docker/K8s notes
-
-## Architecture
-Description of agents, tools, and data flow.
-
-## How to Run
-Dependencies, env vars, and commands.
-
-## Example Questions & Behavior
-1–2 example questions and what the agent(s) do.
-
-## Assumptions
-Any assumptions about APIs, models, or environment.
+```bash
+curl -X POST http://localhost:8002/chat/ -H "Content-Type: application/json" -d "{\"message\": \"What is on the front page of https://example.com?\", \"mode\": \"general\"}"
 ```
 
+### 3. Agent swarm — search, URL, synthesis (Swarm)
+
+| What to test | Example prompt |
+|--------------|----------------|
+| Researcher + synthesizer | `What is the current exchange rate of EUR to USD?` |
+| Fetcher + synthesizer | `Fetch https://httpbin.org/json and summarize what it returns.` |
+| Researcher + fetcher + synthesizer | `Find the Wikipedia page for "LangChain" and in one paragraph tell me what it is.` |
+
+```bash
+curl -X POST http://localhost:8002/chat/ -H "Content-Type: application/json" -d "{\"message\": \"What is 15% of 240?\", \"mode\": \"swarm\", \"include_trace\": true}"
+```
+
+### 4. Swarm — coding agent (Swarm)
+
+| What to test | Example prompt |
+|--------------|----------------|
+| Run Python | `What is 2 + 2?` or `Compute the factorial of 5.` |
+| Data-style computation | `Generate a list of the first 5 prime numbers using Python.` |
+
+### 5. Swarm — file upload and analysis (Swarm + file)
+
+Attach a file (paperclip in widget or multipart `file` in API).
+
+| What to test | Example prompt (with file attached) |
+|--------------|-------------------------------------|
+| Summarize file | `Summarize this document.` |
+| Question about file | `What is the net profit mentioned in this file?` |
+| Recommendations/conclusion | `List the main recommendations and the conclusion.` |
+
+```bash
+curl -X POST http://localhost:8002/chat/ -F "message=Summarize this file and what is the net profit?" -F "mode=swarm" -F "include_trace=true" -F "file=@/path/to/report.pdf"
+```
+
+### 6. RAG mode (company PDFs)
+
+Requires Qdrant and ingested PDFs: `python -m app.rag.ingest_cli all`.
+
+| What to test | Example prompt |
+|--------------|----------------|
+| Company overview | `What does Pyxon do?` or `What solutions does the company offer?` |
+| Domain-specific | `What cybersecurity solutions does Pyxon provide?` |
+| Multi-intent | `Tell me about Pyxon's IoT solutions and their AI solutions in one answer.` |
+
+```bash
+curl -X POST http://localhost:8002/chat/ -H "Content-Type: application/json" -d "{\"message\": \"What are Pyxon cybersecurity offerings?\", \"mode\": \"rag\"}"
+```
+
+### Quick checklist
+
+| Requirement | Mode | What to run |
+|-------------|------|-------------|
+| Search / data source | General | e.g. capital of Japan, benefits of renewable energy |
+| URL / API requests | General | Summarize a URL or “What does this API return?” |
+| Agent swarm | Swarm | Exchange rate, fetch httpbin, or “What is 2+2?” |
+| RAG over search | General | Two turns: search question then follow-up (needs Qdrant) |
+| File analysis | Swarm + file | Attach file + “Summarize” or “What is the net profit?” |
+| Company RAG | RAG | Questions about Pyxon (needs Qdrant + ingest) |
+
 ---
 
-## Evaluation Criteria
+## Deliverables Checklist
 
-Submissions will be evaluated on:
-
-1. **Functionality:** Agent(s) correctly use search and/or URL/API data and produce coherent, grounded answers.
-2. **Code quality:** Clear, maintainable, and documented code.
-3. **Design:** Sensible choice of tools, prompts, and (if applicable) swarm coordination.
-4. **Completeness:** Full runnable example and README; no placeholders for critical paths.
-5. **Security awareness:** No hardcoded secrets; documentation of any dangerous options.
-6. **Bonus:** RAG integration, tests, or deployment-oriented notes (Docker/K8s) as differentiators.
+| Deliverable | Status | Location / notes |
+|-------------|--------|------------------|
+| Working code: search agent + LLM | ✅ | `app/agents/chat_agent.py`, `app/tools/search.py` |
+| Working code: URL/API agent + LLM | ✅ | `app/agents/chat_agent.py`, `app/tools/url_fetch.py` |
+| Working code: agent swarm | ✅ | `app/swarm/graph.py`, `app/swarm/state.py` |
+| Full end-to-end example | ✅ | `examples/run_e2e_example.py` |
+| README: how to run | ✅ | This document, “How to Run” (Windows/macOS/Linux) |
+| README: architecture | ✅ | “Architecture and Data Flow”, “RAG: … Full Detail” |
+| README: example questions | ✅ | “Testing Guide” |
+| Optional: RAG | ✅ | Company RAG (CrewAI, robots.txt, Qdrant); General persist/retrieve |
+| Optional: tests/benchmark | ⚠️ Partial | `test_chat_file.py` (swarm + file) |
+| Optional: Docker/K8s | ⚠️ Outline | See “Optional: Deployment” |
 
 ---
 
-## Summary of “Does LangChain have that?”
+## Quick Reference: Where to Find What
 
-| Requirement | LangChain/LangGraph support |
-|-------------|-----------------------------|
-| Agent with access to data source like Google | ✅ Yes – e.g. `GoogleSearchAPIWrapper`, `load_tools(["google-search"])` with an agent. |
-| Agent uses LLM to answer based on that data | ✅ Yes – agent uses tool results as context for the LLM to generate answers. |
-| Agent can request URLs and process like APIs | ✅ Yes – e.g. `RequestsGetTool` / `requests_all`; custom tools for parsing JSON/HTML. |
-| Agent swarm / multi-agent | ✅ Yes – LangGraph multi-agent patterns and `langgraph-swarm` (e.g. `create_swarm()`). |
-| Full example | ✅ This README provides an outline; your submission should provide a full runnable example. |
+| Feature | Where to look |
+|---------|----------------|
+| Search + LLM agent | `app/agents/chat_agent.py`, `app/tools/search.py` |
+| URL/API agent | `app/agents/chat_agent.py`, `app/tools/url_fetch.py` |
+| Agent swarm | `app/swarm/graph.py`, `app/swarm/state.py` |
+| End-to-end example | `examples/run_e2e_example.py` |
+| RAG over search/URL | `app/rag/search_store.py` (General mode) |
+| RAG (company, CrewAI, robots.txt, Qdrant, chunking, models) | “RAG: Pyxon Website Scraping…” above; `app/rag/` |
+| File upload + analyst | `app/api/routes/chat.py` (multipart), `app/swarm/graph.py` (analyst), `app/utils/file_extract.py` |
+| Coding agent | `app/tools/code.py`, `app/swarm/graph.py` (_coder_node) |
+| File-upload test script | `test_chat_file.py` |
 
-Good luck. We look forward to your implementation.
+---
+
+## Optional: Deployment Outline
+
+- **Docker:** Dockerfile that installs from `requirements.txt`, sets or mounts `.env`, runs `uvicorn app.main:app --host 0.0.0.0 --port 8000`. Multi-stage build and non-root user recommended. Qdrant as separate container or external service.
+- **Kubernetes/Helm:** Deploy app as Deployment (or Helm chart) with ConfigMap/Secret for env vars, Service, optional Ingress. Qdrant as separate Deployment or managed vector DB. Document `allow_dangerous_requests` and network policies for URL fetch in production.
+
+---
+
+## Assumptions and Environment
+
+- **Search:** SerpAPI (`SERPAPI_API_KEY`) or Google Custom Search (`GOOGLE_API_KEY`, `GOOGLE_CSE_ID`).
+- **LLM:** OpenAI (e.g. GPT-4o-mini); `OPENAI_API_KEY`.
+- **RAG / General persist:** Qdrant optional; `QDRANT_URL`, optional `QDRANT_API_KEY`. Without Qdrant, RAG mode and General-mode retrieve/persist are skipped or disabled.
+- **Secrets:** No API keys in code; use `.env` or a secrets manager.
