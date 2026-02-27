@@ -541,6 +541,21 @@ Below are example questions and representative answers produced by the chatbot. 
 
 ---
 
+## Additional Features (Not Required by Deliverables)
+
+The following were implemented in addition to the requested deliverables (end-to-end example, README with run/architecture/examples, and optional RAG/tests/Docker outline). They are **not** required by the task specification.
+
+| Feature | Description |
+|--------|-------------|
+| **End-chat feedback (modal + options)** | When the user clicks **End chat** in the widget, a **modal popup** appears (overlay + centered card) instead of replacing the chat view. The user can give a **star rating (1–5)**, select one or more **clickable feedback options** (e.g. "Very helpful", "Fast response", "Answer was inaccurate", "Response was slow", "Could not find what I needed", "Other"), and optionally add free-text comments. Selections are sent to the backend and recorded. Fully confined within the chatbot panel (no scroll). |
+| **Feedback API** | `POST /feedback/` accepts JSON: `rating` (1–5), optional `options` (list of selected option keys), and optional `feedback` (text). Used to log or persist end-chat feedback for analytics; not required by the deliverables. See `app/api/routes/feedback.py`. |
+| **Widget onboarding and UX** | **Disclaimer** (terms of use) and **name/email form** before starting the chat; **theme toggle** (dark/light); **language toggle** (EN / عربي) with RTL support; **mode selector** (General / RAG / Swarm) on welcome and in chat; **file attachment** in the widget. The deliverables did not specify a full chat UI or embeddable widget UX. |
+| **Compact feedback modal** | Feedback modal is sized to fit inside the chatbot panel (max-height 85% of panel, overflow hidden). Text and control sizes are reduced so the entire dialog fits without scrolling. |
+
+**Summary:** The task asked for one end-to-end example, README (run, architecture, examples), and optional RAG/tests/Docker. The above features (feedback flow, feedback API, full widget onboarding and i18n/theme/mode, and compact modal UX) are extra and not part of that scope.
+
+---
+
 ## Quick Reference: Where to Find What
 
 | Feature | Where to look |
