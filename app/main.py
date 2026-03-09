@@ -59,6 +59,12 @@ def embed_js() -> Response:
     return Response(content=path.read_text(encoding="utf-8"), media_type="application/javascript")
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon() -> Response:
+    """Avoid 404 when browser requests favicon."""
+    return Response(status_code=204)
+
+
 @app.get("/health")
 def health() -> dict:
     """Health check for deployment."""

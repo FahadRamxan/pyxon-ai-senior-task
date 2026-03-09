@@ -1,5 +1,6 @@
 """Chat API: send a message to the agent and get a response."""
 
+import logging
 import uuid
 from typing import Any, Literal, Optional
 
@@ -95,6 +96,7 @@ def _chat_handle(
         output = _last_ai_content(messages)
         return ChatResponse(output=output, success=True)
     except Exception as e:
+        logging.exception("Chat request failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
